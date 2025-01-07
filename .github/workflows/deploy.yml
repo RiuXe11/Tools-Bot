@@ -9,31 +9,32 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
-    - name: Install dependencies
-      run: npm install
     - name: Compress files
       run: zip -r bot.zip ./*
-    - name: Upload bot files
+    - name: Upload and update files
       run: |
         echo "Uploading bot files..."
         # Upload le zip
         curl -X POST \
-          "https://control.katabump.com/api/client/servers/${{ secrets.PTERO_SERVER_ID }}/files/write?file=/bot.zip" \
+          "https://control.katabump.com/api/client/servers/${{ secrets.PTERO_SERVER_ID }}/files/write?file=/update.zip" \
           -H "Authorization: Bearer ${{ secrets.PTERO_API_KEY }}" \
           -H "Content-Type: application/binary" \
           --data-binary "@bot.zip"
         
-        echo "Executing unzip command..."
-        # Exécuter la commande unzip via l'API
+        echo "Backing up and updating files..."
+        # Série de commandes pour gérer la mise à jour
         curl -X POST \
           "https://control.katabump.com/api/client/servers/${{ secrets.PTERO_SERVER_ID }}/command" \
           -H "Authorization: Bearer ${{ secrets.PTERO_API_KEY }}" \
           -H "Content-Type: application/json" \
-          -d '{"command": "rm -rf ./* && unzip bot.zip && rm bot.zip"}'
+          -d '{
+            "command": "mkdir -p backup && cp -r * backup/ 2>/dev/null || true && rm -rf !(.env|backup|update.zip|node_modules) && unzip -o update.zip && rm update.zip"
+          }'
     - name: Restart server
       if: success()
       run: |
         echo "Redémarrage du serveur..."
+        sleep 5
         curl -X POST \
           "https://control.katabump.com/api/client/servers/${{ secrets.PTERO_SERVER_ID }}/power" \
           -H "Authorization: Bearer ${{ secrets.PTERO_API_KEY }}" \
