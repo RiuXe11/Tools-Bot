@@ -13,18 +13,40 @@ jobs:
       run: npm install
     - name: Compress files
       run: zip -r bot.zip ./*
-    - name: Upload bot files to Pterodactyl
+    - name: Debug secrets
       run: |
-        echo "Uploading to: ${{ secrets.PTERO_PANEL_URL }}/api/client/servers/${{ secrets.PTERO_SERVER_ID }}/files/upload"
-        curl --request POST \
-          --url "${{ secrets.PTERO_PANEL_URL }}/api/client/servers/${{ secrets.PTERO_SERVER_ID }}/files/upload" \
-          --header "Authorization: Bearer ${{ secrets.PTERO_API_KEY }}" \
+        if [ -z "${{ secrets.PTERO_PANEL_URL }}" ]; then
+          echo "PTERO_PANEL_URL is empty"
+        fi
+        if [ -z "${{ secrets.PTERO_SERVER_ID }}" ]; then
+          echo "PTERO_SERVER_ID is empty"
+        fi
+        if [ -z "${{ secrets.PTERO_API_KEY }}" ]; then
+          echo "PTERO_API_KEY is empty"
+        fi
+    - name: Upload bot files to Pterodactyl
+      if: success()
+      run: |
+        PANEL_URL="${{ secrets.PTERO_PANEL_URL }}"
+        SERVER_ID="${{ secrets.PTERO_SERVER_ID }}"
+        API_KEY="${{ secrets.PTERO_API_KEY }}"
+        
+        curl --fail \
+          --request POST \
+          --url "${PANEL_URL}/api/client/servers/${SERVER_ID}/files/upload" \
+          --header "Authorization: Bearer ${API_KEY}" \
           --header "Content-Type: multipart/form-data" \
           --form "files=@bot.zip"
     - name: Restart server
+      if: success()
       run: |
-        curl --request POST \
-          --url "${{ secrets.PTERO_PANEL_URL }}/api/client/servers/${{ secrets.PTERO_SERVER_ID }}/power" \
-          --header "Authorization: Bearer ${{ secrets.PTERO_API_KEY }}" \
+        PANEL_URL="${{ secrets.PTERO_PANEL_URL }}"
+        SERVER_ID="${{ secrets.PTERO_SERVER_ID }}"
+        API_KEY="${{ secrets.PTERO_API_KEY }}"
+        
+        curl --fail \
+          --request POST \
+          --url "${PANEL_URL}/api/client/servers/${SERVER_ID}/power" \
+          --header "Authorization: Bearer ${API_KEY}" \
           --header "Content-Type: application/json" \
           --data '{"signal": "restart"}'
