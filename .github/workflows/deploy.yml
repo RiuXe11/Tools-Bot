@@ -13,20 +13,36 @@ jobs:
       run: npm install
     - name: Compress files
       run: zip -r bot.zip ./*
-    - name: Upload bot files to Pterodactyl
+    - name: Upload and extract bot files
       run: |
         echo "Uploading bot files..."
+        # Upload the zip file
         curl -X POST \
-          "https://control.katabump.com/api/client/servers/6c35b5df/files/write?file=/bot.zip" \
+          "https://control.katabump.com/api/client/servers/02595ea0/files/write?file=/bot.zip" \
           -H "Authorization: Bearer ${{ secrets.PTERO_API_KEY }}" \
           -H "Content-Type: application/binary" \
           --data-binary "@bot.zip"
+        
+        echo "Extracting files..."
+        # Commande pour décompresser le fichier
+        curl -X POST \
+          "https://control.katabump.com/api/client/servers/02595ea0/files/decompress" \
+          -H "Authorization: Bearer ${{ secrets.PTERO_API_KEY }}" \
+          -H "Content-Type: application/json" \
+          -d '{"root": "/", "file": "bot.zip"}'
+        
+        echo "Cleaning up..."
+        # Supprimer le fichier zip après décompression
+        curl -X DELETE \
+          "https://control.katabump.com/api/client/servers/02595ea0/files/delete?files=bot.zip" \
+          -H "Authorization: Bearer ${{ secrets.PTERO_API_KEY }}" \
+          -H "Content-Type: application/json"
     - name: Restart server
       if: success()
       run: |
         echo "Redémarrage du serveur..."
         curl -X POST \
-          "https://control.katabump.com/api/client/servers/6c35b5df/power" \
+          "https://control.katabump.com/api/client/servers/02595ea0/power" \
           -H "Authorization: Bearer ${{ secrets.PTERO_API_KEY }}" \
           -H "Content-Type: application/json" \
           -d '{"signal": "restart"}'
