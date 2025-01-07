@@ -22,13 +22,12 @@ jobs:
           --data-binary "@bot.zip"
         
         echo "Backing up and updating files..."
-        # Série de commandes pour gérer la mise à jour
         curl -X POST \
           "https://control.katabump.com/api/client/servers/${{ secrets.PTERO_SERVER_ID }}/command" \
           -H "Authorization: Bearer ${{ secrets.PTERO_API_KEY }}" \
           -H "Content-Type: application/json" \
           -d '{
-            "command": "mkdir -p backup && cp -r * backup/ 2>/dev/null || true && rm -rf !(.env|backup|update.zip|node_modules) && unzip -o update.zip && rm update.zip"
+            "command": "mkdir -p backup && cp -r * backup/ 2>/dev/null || true && find . -mindepth 1 -not \\( -name node_modules -o -name .env -o -name backup -o -name update.zip \\) -exec rm -rf {} + && unzip -o update.zip && rm update.zip"
           }'
     - name: Restart server
       if: success()
