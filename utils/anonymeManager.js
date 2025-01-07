@@ -771,8 +771,12 @@ async function handleMessage(message) {
         
         if (cooldownExpiration && Date.now() < cooldownExpiration) {
             const remainingTime = Math.ceil((cooldownExpiration - Date.now()) / 1000);
-            message.reply(`Merci d'attendre ${remainingTime} secondes avant d'envoyer un nouveau message.`)
-                .then(msg => setTimeout(() => msg.delete(), 5000));
+            try {
+                const reply = await message.reply(`Merci d'attendre ${remainingTime} secondes avant d'envoyer un nouveau message.`);
+                setTimeout(() => reply.delete().catch(() => {}), 5000);
+            } catch (error) {
+                console.error('Erreur cooldown:', error);
+            }
             return;
         }
 
@@ -780,80 +784,102 @@ async function handleMessage(message) {
         setTimeout(() => cooldowns.delete(key), channel.settings.cooldown * 1000);
     }
 
-    // Vérifier la longueur du message
-    if (message.content.length > channel.settings.maxLength) {
-        message.reply(`Votre message dépasse la limite de ${channel.settings.maxLength} caractères.`)
-            .then(msg => setTimeout(() => msg.delete(), 5000));
-        return;
-    }
-
-    // Vérifier les pièces jointes
-    if (!channel.settings.allowFiles && message.attachments.size > 0) {
-        message.reply('Les pièces jointes ne sont pas autorisées dans ce salon.')
-            .then(msg => setTimeout(() => msg.delete(), 5000));
-        return;
+    // Traitement des fichiers
+    let attachments = [];
+    if (message.attachments.size > 0) {
+        if (!channel.settings.allowFiles) {
+            try {
+                const reply = await message.reply('Les pièces jointes ne sont pas autorisées dans ce salon.');
+                setTimeout(() => reply.delete().catch(() => {}), 5000);
+                if (channel.settings.deleteOriginal) {
+                    await message.delete().catch(() => {});
+                }
+            } catch (error) {
+                console.error('Erreur fichiers:', error);
+            }
+            return;
+        }
+        attachments = Array.from(message.attachments.values());
     }
 
     try {
         const embed = new EmbedBuilder()
             .setColor('#2F3136')
-            .setDescription(message.content);
+            .setDescription(message.content || '');
 
         if (channel.settings.showTimestamp) {
             embed.setTimestamp();
         }
 
-        // Ajouter le préfix personnalisé
         embed.setAuthor({ name: channel.settings.customPrefix });
 
-        // Gérer les pièces jointes si autorisées
-        if (channel.settings.allowFiles && message.attachments.size > 0) {
-            const attachment = message.attachments.first();
-            if (attachment.contentType?.startsWith('image/')) {
-                embed.setImage(attachment.url);
-            } else {
-                embed.addFields({ name: 'Pièce jointe', value: attachment.url });
+        // Gestion améliorée des pièces jointes
+        if (attachments.length > 0) {
+            const imageAttachment = attachments.find(att => att.contentType?.startsWith('image/'));
+            if (imageAttachment) {
+                embed.setImage(imageAttachment.url);
+            }
+            
+            const otherAttachments = attachments.filter(att => !att.contentType?.startsWith('image/'));
+            if (otherAttachments.length > 0) {
+                embed.addFields({
+                    name: 'Pièces jointes',
+                    value: otherAttachments.map(att => `[${att.name}](${att.url})`).join('\n')
+                });
             }
         }
 
+        // Envoi du message anonyme avec gestion des erreurs
         const anonymousMessage = await message.channel.send({ embeds: [embed] });
 
-        // Envoyer les logs si configurés
+        // Logs avec gestion des erreurs
         if (channel.settings.logsChannelId) {
-            const logsChannel = message.guild.channels.cache.get(channel.settings.logsChannelId);
-            if (logsChannel) {
-                const logsEmbed = new EmbedBuilder()
-                    .setTitle('Message Anonyme Envoyé')
-                    .setColor('#2F3136')
-                    .addFields(
-                        { name: 'Auteur', value: `<@${message.author.id}> (${message.author.id})` },
-                        { name: 'Salon', value: `<#${message.channel.id}> (${message.channel.id})` },
-                        { name: 'Message', value: message.content || '(pas de contenu)' }
-                    )
-                    .setTimestamp();
-        
-                if (message.attachments.size > 0) {
-                    logsEmbed.addFields({ name: 'Pièces jointes', value: message.attachments.map(a => a.url).join('\n') });
+            try {
+                const logsChannel = message.guild.channels.cache.get(channel.settings.logsChannelId);
+                if (logsChannel) {
+                    const logsEmbed = new EmbedBuilder()
+                        .setTitle('Message Anonyme Envoyé')
+                        .setColor('#2F3136')
+                        .addFields(
+                            { name: 'Auteur', value: `${message.author.tag} (${message.author.id})` },
+                            { name: 'Salon', value: `${message.channel.name} (${message.channel.id})` },
+                            { name: 'Message', value: message.content || '(pas de contenu)' }
+                        )
+                        .setTimestamp();
+
+                    if (attachments.length > 0) {
+                        logsEmbed.addFields({ 
+                            name: 'Pièces jointes', 
+                            value: attachments.map(a => `${a.name}: ${a.url}`).join('\n') 
+                        });
+                    }
+
+                    await logsChannel.send({ embeds: [logsEmbed] });
                 }
-        
-                await logsChannel.send({ embeds: [logsEmbed] });
+            } catch (error) {
+                console.error('Erreur logs:', error);
             }
         }
 
-        // Supprimer le message original si configuré
+        // Suppression du message original avec gestion des erreurs
         if (channel.settings.deleteOriginal) {
-            message.delete().catch(console.error);
+            try {
+                await message.delete();
+            } catch (error) {
+                if (error.code !== 10008) {
+                    console.error('Erreur suppression:', error);
+                }
+            }
         }
 
-        // Gérer les réactions si autorisées
-        if (channel.settings.allowReactions) {
-            // Vous pouvez ajouter des réactions par défaut ici si souhaité
-            // await anonymousMessage.react('👍');
-        }
     } catch (error) {
-        console.error(error);
-        message.reply('Une erreur est survenue lors de l\'envoi du message anonyme.')
-            .then(msg => setTimeout(() => msg.delete(), 5000));
+        console.error('Erreur générale:', error);
+        try {
+            const errorMsg = await message.reply('Une erreur est survenue lors de l\'envoi du message anonyme.');
+            setTimeout(() => errorMsg.delete().catch(() => {}), 5000);
+        } catch (e) {
+            console.error('Erreur notification:', e);
+        }
     }
 }
 
