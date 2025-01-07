@@ -25,7 +25,8 @@ jobs:
         PTERO_SERVER_ID: ${{ secrets.PTERO_SERVER_ID }}
         PTERO_PANEL_URL: ${{ secrets.PTERO_PANEL_URL }}
       run: |
-        curl -X POST "$PTERO_PANEL_URL/api/client/servers/$PTERO_SERVER_ID/files/write?file=bot.zip" \
-        -H "Authorization: Bearer $PTERO_API_KEY" \
+        curl -X POST "https://control.katabump.com/api/client/servers/<ID>/files/write?file=bot.zip" \
+        -H "Authorization: Bearer <API_KEY>" \
         -H "Content-Type: application/json" \
         --data-binary "@bot.zip"
+
