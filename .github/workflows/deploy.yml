@@ -25,10 +25,10 @@ jobs:
         PTERO_SERVER_ID: ${{ secrets.PTERO_SERVER_ID }}
         PTERO_PANEL_URL: ${{ secrets.PTERO_PANEL_URL }}
       run: |
-        curl -X POST "$PTERO_PANEL_URL/api/client/servers/$PTERO_SERVER_ID/files/write?file=bot.zip" \
+        curl -X POST "$PTERO_PANEL_URL/api/client/servers/$PTERO_SERVER_ID/files/upload" \
         -H "Authorization: Bearer $PTERO_API_KEY" \
-        -H "Content-Type: application/json" \
-        --data-binary "@bot.zip"
+        -H "Content-Type: multipart/form-data" \
+        -F "files=@bot.zip"
     - name: Restart server
       env:
         PTERO_API_KEY: ${{ secrets.PTERO_API_KEY }}
