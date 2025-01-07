@@ -13,33 +13,32 @@ jobs:
       run: npm install
     - name: Compress files
       run: zip -r bot.zip ./*
-    - name: Debug URL
-      run: |
-        echo "Testing API endpoint..."
-        curl -I \
-          "https://control.katabump.com/api/client" \
-          -H "Authorization: Bearer ${{ secrets.PTERO_API_KEY }}" \
-          -H "Accept: application/json"
     - name: Upload bot files to Pterodactyl
       run: |
-        # First, request url for file upload
-        UPLOAD_URL=$(curl -X GET \
+        # Test API connection
+        echo "Testing API connection..."
+        RESPONSE=$(curl -s \
+          "https://control.katabump.com/api/client" \
+          -H "Authorization: Bearer ${{ secrets.PTERO_API_KEY }}" \
+          -H "Accept: application/json")
+        echo "API Response: $RESPONSE"
+        
+        # Get upload URL
+        echo "Getting upload URL..."
+        UPLOAD_URL=$(curl -s \
           "https://control.katabump.com/api/client/servers/${{ secrets.PTERO_SERVER_ID }}/files/upload" \
           -H "Authorization: Bearer ${{ secrets.PTERO_API_KEY }}" \
-          -H "Content-Type: application/json" \
           -H "Accept: application/json" | jq -r '.attributes.url')
         
-        # Then upload the file to the provided URL
+        if [ -z "$UPLOAD_URL" ]; then
+          echo "Failed to get upload URL"
+          exit 1
+        fi
+        
+        echo "Upload URL: $UPLOAD_URL"
+        
+        # Upload file
         curl -X POST \
-          "${UPLOAD_URL}" \
+          "$UPLOAD_URL" \
           -H "Content-Type: multipart/form-data" \
           -F "files=@bot.zip"
-    - name: Restart server
-      if: success()
-      run: |
-        curl -X POST \
-          "https://control.katabump.com/api/client/servers/${{ secrets.PTERO_SERVER_ID }}/power" \
-          -H "Authorization: Bearer ${{ secrets.PTERO_API_KEY }}" \
-          -H "Content-Type: application/json" \
-          -H "Accept: application/json" \
-          -d '{"signal": "restart"}'
