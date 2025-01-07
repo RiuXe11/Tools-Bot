@@ -1,35 +1,41 @@
 name: Deploy to Pterodactyl
-
 on:
   push:
     branches:
       - main
-
 jobs:
   deploy:
-    runs-on: debian-latest
-
+    runs-on: ubuntu-latest
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
-
     - name: Install dependencies
       run: npm install
-
     - name: Compress files
       run: zip -r bot.zip ./*
-
-    - name: Deploy to Pterodactyl
-      env:
-        PTERO_API_KEY: ${{ secrets.PTERO_API_KEY }}
-        PTERO_SERVER_ID: ${{ secrets.PTERO_SERVER_ID }}
-        PTERO_PANEL_URL: ${{ secrets.PTERO_PANEL_URL }}
+    - name: Upload bot files
       run: |
-        curl -X POST "$PTERO_PANEL_URL/api/client/servers/$PTERO_SERVER_ID/files/write?file=bot.zip" \
-        -H "Authorization: Bearer $PTERO_API_KEY" \
-        -H "Content-Type: application/json" \
-        --data-binary "@bot.zip"
-        curl -X POST "$PTERO_PANEL_URL/api/client/servers/$PTERO_SERVER_ID/commands" \
-        -H "Authorization: Bearer $PTERO_API_KEY" \
-        -H "Content-Type: application/json" \
-        --data '{"command": "unzip -o bot.zip && rm bot.zip && npm install && npm start"}'
+        echo "Uploading bot files..."
+        # Upload le zip
+        curl -X POST \
+          "https://control.katabump.com/api/client/servers/${{ secrets.PTERO_SERVER_ID }}/files/write?file=/bot.zip" \
+          -H "Authorization: Bearer ${{ secrets.PTERO_API_KEY }}" \
+          -H "Content-Type: application/binary" \
+          --data-binary "@bot.zip"
+        
+        echo "Executing unzip command..."
+        # Exécuter la commande unzip via l'API
+        curl -X POST \
+          "https://control.katabump.com/api/client/servers/${{ secrets.PTERO_SERVER_ID }}/command" \
+          -H "Authorization: Bearer ${{ secrets.PTERO_API_KEY }}" \
+          -H "Content-Type: application/json" \
+          -d '{"command": "rm -rf ./* && unzip bot.zip && rm bot.zip"}'
+    - name: Restart server
+      if: success()
+      run: |
+        echo "Redémarrage du serveur..."
+        curl -X POST \
+          "https://control.katabump.com/api/client/servers/${{ secrets.PTERO_SERVER_ID }}/power" \
+          -H "Authorization: Bearer ${{ secrets.PTERO_API_KEY }}" \
+          -H "Content-Type: application/json" \
+          -d '{"signal": "restart"}'
