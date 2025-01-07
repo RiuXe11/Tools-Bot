@@ -28,13 +28,6 @@ jobs:
           -H "Authorization: Bearer ${{ secrets.PTERO_API_KEY }}" \
           -H "Content-Type: application/json" \
           -d '{"root": "/", "file": "bot.zip"}'
-        
-        echo "Cleaning up..."
-        # Supprimer le fichier zip après décompression
-        curl -X DELETE \
-          "https://control.katabump.com/api/client/servers/6c35b5df/files/delete?files=bot.zip" \
-          -H "Authorization: Bearer ${{ secrets.PTERO_API_KEY }}" \
-          -H "Content-Type: application/json"
     - name: Restart server
       if: success()
       run: |
