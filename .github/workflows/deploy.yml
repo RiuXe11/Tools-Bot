@@ -13,36 +13,29 @@ jobs:
       run: npm install
     - name: Compress files
       run: zip -r bot.zip ./*
-    - name: Upload and extract bot files
+    - name: Upload bot files
       run: |
         echo "Uploading bot files..."
-        # Upload the zip file
+        # Upload le zip
         curl -X POST \
-          "https://control.katabump.com/api/client/servers/6c35b5df/files/write?file=/bot.zip" \
+          "https://control.katabump.com/api/client/servers/${{ secrets.PTERO_SERVER_ID }}/files/write?file=/bot.zip" \
           -H "Authorization: Bearer ${{ secrets.PTERO_API_KEY }}" \
           -H "Content-Type: application/binary" \
           --data-binary "@bot.zip"
         
-        echo "Extracting files..."
-        # Commande pour décompresser le fichier
+        echo "Executing unzip command..."
+        # Exécuter la commande unzip via l'API
         curl -X POST \
-          "https://control.katabump.com/api/client/servers/6c35b5df/files/decompress" \
+          "https://control.katabump.com/api/client/servers/${{ secrets.PTERO_SERVER_ID }}/command" \
           -H "Authorization: Bearer ${{ secrets.PTERO_API_KEY }}" \
           -H "Content-Type: application/json" \
-          -d '{"root": "/", "file": "bot.zip"}'
-        
-        echo "Cleaning up..."
-        # Supprimer le fichier zip après décompression
-        curl -X DELETE \
-          "https://control.katabump.com/api/client/servers/6c35b5df/files/delete?files=bot.zip" \
-          -H "Authorization: Bearer ${{ secrets.PTERO_API_KEY }}" \
-          -H "Content-Type: application/json"
+          -d '{"command": "rm -rf ./* && unzip bot.zip && rm bot.zip"}'
     - name: Restart server
       if: success()
       run: |
         echo "Redémarrage du serveur..."
         curl -X POST \
-          "https://control.katabump.com/api/client/servers/6c35b5df0/power" \
+          "https://control.katabump.com/api/client/servers/${{ secrets.PTERO_SERVER_ID }}/power" \
           -H "Authorization: Bearer ${{ secrets.PTERO_API_KEY }}" \
           -H "Content-Type: application/json" \
           -d '{"signal": "restart"}'
