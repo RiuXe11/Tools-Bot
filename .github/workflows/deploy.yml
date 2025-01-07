@@ -9,28 +9,38 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
+      
     - name: Compress files
       run: zip -r bot.zip ./*
-    - name: Upload and update files
+      
+    - name: Upload zip file
       run: |
         echo "Uploading bot files..."
-        # Upload le zip
         curl -X POST \
           "https://control.katabump.com/api/client/servers/${{ secrets.PTERO_SERVER_ID }}/files/write?file=/update.zip" \
           -H "Authorization: Bearer ${{ secrets.PTERO_API_KEY }}" \
           -H "Content-Type: application/binary" \
           --data-binary "@bot.zip"
-        
-        echo "Updating files..."
+          
+    - name: Unzip files
+      run: |
+        echo "Extracting files..."
         curl -X POST \
           "https://control.katabump.com/api/client/servers/${{ secrets.PTERO_SERVER_ID }}/command" \
           -H "Authorization: Bearer ${{ secrets.PTERO_API_KEY }}" \
           -H "Content-Type: application/json" \
-          -d '{
-            "command": "rm -rf ./{commands,events,models,logs}/* && find . -maxdepth 1 -type f ! -name .env ! -name update.zip -delete && unzip -o update.zip && rm update.zip"
-          }'
+          -d '{"command": "unzip -o update.zip"}'
+          
+    - name: Clean up zip file
+      run: |
+        echo "Removing zip file..."
+        curl -X POST \
+          "https://control.katabump.com/api/client/servers/${{ secrets.PTERO_SERVER_ID }}/command" \
+          -H "Authorization: Bearer ${{ secrets.PTERO_API_KEY }}" \
+          -H "Content-Type: application/json" \
+          -d '{"command": "rm update.zip"}'
+          
     - name: Restart server
-      if: success()
       run: |
         echo "Redémarrage du serveur..."
         sleep 5
