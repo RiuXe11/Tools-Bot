@@ -755,6 +755,7 @@ async function promptForCooldown(message, channelId, interaction) {
 }
 
 // Fonction pour gérer les messages dans les salons anonymes
+// Fonction pour gérer les messages dans les salons anonymes
 async function handleMessage(message) {
     if (message.author.bot) return;
 
@@ -805,7 +806,7 @@ async function handleMessage(message) {
     try {
         const embed = new EmbedBuilder()
             .setColor('#2F3136')
-            .setDescription(message.content || '');
+            .setDescription(message.content || '\u200b');
 
         if (channel.settings.showTimestamp) {
             embed.setTimestamp();
