@@ -19,7 +19,7 @@ jobs:
     - name: Compress files
       run: zip -r bot.zip ./*
 
-    - name: Deploy to Pterodactyl
+    - name: Upload bot files to Pterodactyl
       env:
         PTERO_API_KEY: ${{ secrets.PTERO_API_KEY }}
         PTERO_SERVER_ID: ${{ secrets.PTERO_SERVER_ID }}
@@ -29,7 +29,3 @@ jobs:
         -H "Authorization: Bearer $PTERO_API_KEY" \
         -H "Content-Type: application/json" \
         --data-binary "@bot.zip"
-        curl -X POST "$PTERO_PANEL_URL/api/client/servers/$PTERO_SERVER_ID/commands" \
-        -H "Authorization: Bearer $PTERO_API_KEY" \
-        -H "Content-Type: application/json" \
-        --data '{"command": "unzip -o bot.zip && rm bot.zip && npm install && npm start"}'
