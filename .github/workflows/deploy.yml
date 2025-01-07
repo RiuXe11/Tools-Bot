@@ -13,7 +13,7 @@ jobs:
     - name: Compress files
       run: zip -r bot.zip ./*
       
-    - name: Upload zip file
+    - name: Upload and process files
       run: |
         echo "Uploading bot files..."
         curl -X POST \
@@ -21,40 +21,13 @@ jobs:
           -H "Authorization: Bearer ${{ secrets.PTERO_API_KEY }}" \
           -H "Content-Type: application/binary" \
           --data-binary "@bot.zip"
-          
-    - name: Process files
-      run: |
-        # Liste des fichiers avant
-        echo "Files before processing:"
-        curl -X POST \
-          "https://control.katabump.com/api/client/servers/${{ secrets.PTERO_SERVER_ID }}/command" \
-          -H "Authorization: Bearer ${{ secrets.PTERO_API_KEY }}" \
-          -H "Content-Type: application/json" \
-          -d '{"command": "ls -la"}'
         
-        # Tentative de décompression avec plus de détails
-        echo "Unzipping with verbose output:"
+        echo "Processing files..."
         curl -X POST \
           "https://control.katabump.com/api/client/servers/${{ secrets.PTERO_SERVER_ID }}/command" \
           -H "Authorization: Bearer ${{ secrets.PTERO_API_KEY }}" \
           -H "Content-Type: application/json" \
-          -d '{"command": "unzip -vo update.zip"}'
-        
-        # Liste des fichiers après
-        echo "Files after unzip:"
-        curl -X POST \
-          "https://control.katabump.com/api/client/servers/${{ secrets.PTERO_SERVER_ID }}/command" \
-          -H "Authorization: Bearer ${{ secrets.PTERO_API_KEY }}" \
-          -H "Content-Type: application/json" \
-          -d '{"command": "ls -la"}'
-        
-        # Tentative de suppression du zip
-        echo "Removing zip file:"
-        curl -X POST \
-          "https://control.katabump.com/api/client/servers/${{ secrets.PTERO_SERVER_ID }}/command" \
-          -H "Authorization: Bearer ${{ secrets.PTERO_API_KEY }}" \
-          -H "Content-Type: application/json" \
-          -d '{"command": "rm -v update.zip"}'
+          -d '{"command": "cd /home/container && unzip -o update.zip && rm update.zip"}'
           
     - name: Restart server
       run: |
