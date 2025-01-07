@@ -14,24 +14,17 @@ jobs:
     - name: Compress files
       run: zip -r bot.zip ./*
     - name: Upload bot files to Pterodactyl
-      env:
-        PTERO_API_KEY: ${{ secrets.PTERO_API_KEY }}
-        PTERO_SERVER_ID: ${{ secrets.PTERO_SERVER_ID }}
-        PTERO_PANEL_URL: ${{ secrets.PTERO_PANEL_URL }}
       run: |
+        echo "Uploading to: ${{ secrets.PTERO_PANEL_URL }}/api/client/servers/${{ secrets.PTERO_SERVER_ID }}/files/upload"
         curl --request POST \
-        --url "${PTERO_PANEL_URL}/api/client/servers/${PTERO_SERVER_ID}/files/upload" \
-        --header "Authorization: Bearer ${PTERO_API_KEY}" \
-        --header "Content-Type: multipart/form-data" \
-        --form "files=@bot.zip"
+          --url "${{ secrets.PTERO_PANEL_URL }}/api/client/servers/${{ secrets.PTERO_SERVER_ID }}/files/upload" \
+          --header "Authorization: Bearer ${{ secrets.PTERO_API_KEY }}" \
+          --header "Content-Type: multipart/form-data" \
+          --form "files=@bot.zip"
     - name: Restart server
-      env:
-        PTERO_API_KEY: ${{ secrets.PTERO_API_KEY }}
-        PTERO_SERVER_ID: ${{ secrets.PTERO_SERVER_ID }}
-        PTERO_PANEL_URL: ${{ secrets.PTERO_PANEL_URL }}
       run: |
         curl --request POST \
-        --url "${PTERO_PANEL_URL}/api/client/servers/${PTERO_SERVER_ID}/power" \
-        --header "Authorization: Bearer ${PTERO_API_KEY}" \
-        --header "Content-Type: application/json" \
-        --data '{"signal": "restart"}'
+          --url "${{ secrets.PTERO_PANEL_URL }}/api/client/servers/${{ secrets.PTERO_SERVER_ID }}/power" \
+          --header "Authorization: Bearer ${{ secrets.PTERO_API_KEY }}" \
+          --header "Content-Type: application/json" \
+          --data '{"signal": "restart"}'
