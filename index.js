@@ -55,4 +55,4 @@ for (const folder of commandFolders) {
     }
 }
 
-client.login(process.env.DISCORD_TOKEN);
+client.login(process.env.DISCORD_TOKEN); // NE PAS TOUCHER
