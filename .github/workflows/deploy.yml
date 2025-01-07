@@ -13,32 +13,18 @@ jobs:
       run: npm install
     - name: Compress files
       run: zip -r bot.zip ./*
-    - name: Upload bot files to Pterodactyl
+    - name: Test API Connection
       run: |
-        # Test API connection
-        echo "Testing API connection..."
-        RESPONSE=$(curl -s \
+        echo "Testing API connection with verbose output..."
+        curl -v \
           "https://control.katabump.com/api/client" \
           -H "Authorization: Bearer ${{ secrets.PTERO_API_KEY }}" \
-          -H "Accept: application/json")
-        echo "API Response: $RESPONSE"
-        
-        # Get upload URL
-        echo "Getting upload URL..."
-        UPLOAD_URL=$(curl -s \
-          "https://control.katabump.com/api/client/servers/${{ secrets.PTERO_SERVER_ID }}/files/upload" \
+          -H "Accept: application/json" \
+          -H "Content-Type: application/json"
+    - name: Direct file upload
+      run: |
+        curl -v -X POST \
+          "https://control.katabump.com/api/client/servers/${{ secrets.PTERO_SERVER_ID }}/files/write?file=bot.zip" \
           -H "Authorization: Bearer ${{ secrets.PTERO_API_KEY }}" \
-          -H "Accept: application/json" | jq -r '.attributes.url')
-        
-        if [ -z "$UPLOAD_URL" ]; then
-          echo "Failed to get upload URL"
-          exit 1
-        fi
-        
-        echo "Upload URL: $UPLOAD_URL"
-        
-        # Upload file
-        curl -X POST \
-          "$UPLOAD_URL" \
-          -H "Content-Type: multipart/form-data" \
-          -F "files=@bot.zip"
+          -H "Content-Type: application/binary" \
+          --data-binary "@bot.zip"
