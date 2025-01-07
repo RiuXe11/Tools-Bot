@@ -25,8 +25,18 @@ jobs:
         PTERO_SERVER_ID: ${{ secrets.PTERO_SERVER_ID }}
         PTERO_PANEL_URL: ${{ secrets.PTERO_PANEL_URL }}
       run: |
-        curl -X POST "https://control.katabump.com/api/client/servers/<ID>/files/write?file=bot.zip" \
-        -H "Authorization: Bearer <API_KEY>" \
+        curl -X POST "$PTERO_PANEL_URL/api/client/servers/$PTERO_SERVER_ID/files/write?file=bot.zip" \
+        -H "Authorization: Bearer $PTERO_API_KEY" \
         -H "Content-Type: application/json" \
         --data-binary "@bot.zip"
+    - name: Restart server
+      env:
+        PTERO_API_KEY: ${{ secrets.PTERO_API_KEY }}
+        PTERO_SERVER_ID: ${{ secrets.PTERO_SERVER_ID }}
+        PTERO_PANEL_URL: ${{ secrets.PTERO_PANEL_URL }}
+      run: |
+        curl -X POST "$PTERO_PANEL_URL/api/client/servers/$PTERO_SERVER_ID/power" \
+        -H "Authorization: Bearer $PTERO_API_KEY" \
+        -H "Content-Type: application/json" \
+        --data '{"signal": "restart"}'
 
