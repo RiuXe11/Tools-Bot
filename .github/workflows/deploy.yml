@@ -1,42 +1,37 @@
 name: Deploy to Pterodactyl
-
 on:
   push:
     branches:
       - main
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
-
     - name: Install dependencies
       run: npm install
-
     - name: Compress files
       run: zip -r bot.zip ./*
-
     - name: Upload bot files to Pterodactyl
       env:
         PTERO_API_KEY: ${{ secrets.PTERO_API_KEY }}
         PTERO_SERVER_ID: ${{ secrets.PTERO_SERVER_ID }}
         PTERO_PANEL_URL: ${{ secrets.PTERO_PANEL_URL }}
       run: |
-        curl -X POST "$PTERO_PANEL_URL/api/client/servers/$PTERO_SERVER_ID/files/upload" \
-        -H "Authorization: Bearer $PTERO_API_KEY" \
-        -H "Content-Type: multipart/form-data" \
-        -F "files=@bot.zip"
+        curl --request POST \
+        --url "${PTERO_PANEL_URL}/api/client/servers/${PTERO_SERVER_ID}/files/upload" \
+        --header "Authorization: Bearer ${PTERO_API_KEY}" \
+        --header "Content-Type: multipart/form-data" \
+        --form "files=@bot.zip"
     - name: Restart server
       env:
         PTERO_API_KEY: ${{ secrets.PTERO_API_KEY }}
         PTERO_SERVER_ID: ${{ secrets.PTERO_SERVER_ID }}
         PTERO_PANEL_URL: ${{ secrets.PTERO_PANEL_URL }}
       run: |
-        curl -X POST "$PTERO_PANEL_URL/api/client/servers/$PTERO_SERVER_ID/power" \
-        -H "Authorization: Bearer $PTERO_API_KEY" \
-        -H "Content-Type: application/json" \
+        curl --request POST \
+        --url "${PTERO_PANEL_URL}/api/client/servers/${PTERO_SERVER_ID}/power" \
+        --header "Authorization: Bearer ${PTERO_API_KEY}" \
+        --header "Content-Type: application/json" \
         --data '{"signal": "restart"}'
-
