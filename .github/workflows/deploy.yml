@@ -13,20 +13,20 @@ jobs:
       run: npm install
     - name: Compress files
       run: zip -r bot.zip ./*
-    - name: Debug API Key
+    - name: Upload bot files to Pterodactyl
       run: |
-        if [ -z "${{ secrets.PTERO_API_KEY }}" ]; then
-          echo "❌ PTERO_API_KEY is empty"
-          exit 1
-        else
-          echo "✅ PTERO_API_KEY is set (length: ${#PTERO_API_KEY})"
-        fi
-    - name: Test API Connection
+        echo "Uploading bot files..."
+        curl -X POST \
+          "https://control.katabump.com/api/client/servers/6c35b5df/files/write?file=/bot.zip" \
+          -H "Authorization: Bearer ${{ secrets.PTERO_API_KEY }}" \
+          -H "Content-Type: application/binary" \
+          --data-binary "@bot.zip"
+    - name: Restart server
+      if: success()
       run: |
-        AUTH_HEADER="Authorization: Bearer ${{ secrets.PTERO_API_KEY }}"
-        echo "Testing API connection..."
-        echo "Auth header length: ${#AUTH_HEADER}"
-        curl -v \
-          "https://control.katabump.com/api/client" \
-          -H "$AUTH_HEADER" \
-          -H "Accept: application/json"
+        echo "Redémarrage du serveur..."
+        curl -X POST \
+          "https://control.katabump.com/api/client/servers/6c35b5df/power" \
+          -H "Authorization: Bearer ${{ secrets.PTERO_API_KEY }}" \
+          -H "Content-Type: application/json" \
+          -d '{"signal": "restart"}'
