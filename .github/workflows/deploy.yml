@@ -29,11 +29,11 @@ jobs:
           -H "Content-Type: application/json" \
           -d '{"root": "/", "file": "bot.zip"}'
     - name: Restart server
-      if: success()
       run: |
         echo "Redémarrage du serveur..."
+        sleep 5
         curl -X POST \
-          "https://control.katabump.com/api/client/servers/6c35b5df0/power" \
+          "https://control.katabump.com/api/client/servers/${{ secrets.PTERO_SERVER_ID }}/power" \
           -H "Authorization: Bearer ${{ secrets.PTERO_API_KEY }}" \
           -H "Content-Type: application/json" \
           -d '{"signal": "restart"}'
