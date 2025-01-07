@@ -10,7 +10,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "ascii-art": "^2.8.5",
+    "ascii-art": "^1.5.1",
     "axios": "^1.7.7",
     "crypto": "^1.0.1",
     "discord.js": "^14.17.2",

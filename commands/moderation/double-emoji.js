@@ -165,7 +165,14 @@ module.exports = {
 
                     await interactionMessage.edit({ 
                         components: [new ActionRowBuilder().addComponents(disabledButton)],
-                        embeds: [interactionMessage.embeds[0].setFooter({ text: 'Le temps pour nettoyer est écoulé. Utilisez à nouveau la commande.' })]
+                        embeds: [
+                            new EmbedBuilder()
+                                .setTitle(interactionMessage.embeds[0].title)
+                                .setDescription(interactionMessage.embeds[0].description)
+                                .setColor(interactionMessage.embeds[0].color)
+                                // Copiez les autres propriétés nécessaires de l'embed original
+                                .setFooter({ text: 'Le temps pour nettoyer est écoulé. Utilisez à nouveau la commande.' })
+                        ]
                     }).catch(() => {});
                 }
             });
