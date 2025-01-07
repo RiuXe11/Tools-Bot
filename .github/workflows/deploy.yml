@@ -13,18 +13,20 @@ jobs:
       run: npm install
     - name: Compress files
       run: zip -r bot.zip ./*
+    - name: Debug API Key
+      run: |
+        if [ -z "${{ secrets.PTERO_API_KEY }}" ]; then
+          echo "❌ PTERO_API_KEY is empty"
+          exit 1
+        else
+          echo "✅ PTERO_API_KEY is set (length: ${#PTERO_API_KEY})"
+        fi
     - name: Test API Connection
       run: |
-        echo "Testing API connection with verbose output..."
+        AUTH_HEADER="Authorization: Bearer ${{ secrets.PTERO_API_KEY }}"
+        echo "Testing API connection..."
+        echo "Auth header length: ${#AUTH_HEADER}"
         curl -v \
           "https://control.katabump.com/api/client" \
-          -H "Authorization: Bearer ${{ secrets.PTERO_API_KEY }}" \
-          -H "Accept: application/json" \
-          -H "Content-Type: application/json"
-    - name: Direct file upload
-      run: |
-        curl -v -X POST \
-          "https://control.katabump.com/api/client/servers/${{ secrets.PTERO_SERVER_ID }}/files/write?file=bot.zip" \
-          -H "Authorization: Bearer ${{ secrets.PTERO_API_KEY }}" \
-          -H "Content-Type: application/binary" \
-          --data-binary "@bot.zip"
+          -H "$AUTH_HEADER" \
+          -H "Accept: application/json"
