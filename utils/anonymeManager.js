@@ -842,8 +842,8 @@ async function handleMessage(message) {
                         .setTitle('Message Anonyme Envoyé')
                         .setColor('#2F3136')
                         .addFields(
-                            { name: 'Auteur', value: `${message.author.tag} (${message.author.id})` },
-                            { name: 'Salon', value: `${message.channel.name} (${message.channel.id})` },
+                            { name: 'Auteur', value: `<@${message.author.id}> (${message.author.id})` },
+                            { name: 'Salon', value: `<#${message.channel.id}> (${message.channel.id})` },
                             { name: 'Message', value: message.content || '(pas de contenu)' }
                         )
                         .setTimestamp();

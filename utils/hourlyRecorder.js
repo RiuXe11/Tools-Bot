@@ -125,28 +125,64 @@ class HourlyRecorder {
     async updateStatsFile(guildId, newStats) {
         const statsPath = path.join(process.cwd(), 'data', 'serverstats.json');
         let allStats = {};
-
+    
         try {
             const statsData = await fs.readFile(statsPath, 'utf8');
             allStats = JSON.parse(statsData);
         } catch (error) {
             console.error('Erreur lecture stats:', error);
         }
-
+    
         if (!allStats[guildId]) {
             allStats[guildId] = [];
         }
-
-        // Rechercher et mettre à jour ou ajouter le bloc horaire
+    
+        // Ajouter ou mettre à jour le bloc horaire
         const existingIndex = allStats[guildId].findIndex(stat => stat.id === newStats.id);
         if (existingIndex !== -1) {
+            // Garder l'historique des joueurs pour calculer la moyenne correctement
+            const existingStats = allStats[guildId][existingIndex];
+            if (!existingStats.playerHistory) {
+                existingStats.playerHistory = [existingStats.players];
+            }
+            if (existingStats.players !== newStats.players) {
+                existingStats.playerHistory.push(newStats.players);
+            }
+            // Calculer la vraie moyenne
+            newStats.averagePlayers = existingStats.playerHistory.reduce((a, b) => a + b, 0) / existingStats.playerHistory.length;
             allStats[guildId][existingIndex] = newStats;
         } else {
+            newStats.playerHistory = [newStats.players];
+            newStats.averagePlayers = newStats.players;
             allStats[guildId].push(newStats);
         }
-
+    
         await fs.writeFile(statsPath, JSON.stringify(allStats, null, 2));
         fivemCache.updateCache(guildId, newStats);
+    }
+
+    async handleDateSelection(date) {
+        const selectedDate = new Date(date);
+        const hourId = this.generateHourId(selectedDate);
+        
+        try {
+            const statsPath = path.join(process.cwd(), 'data', 'serverstats.json');
+            const data = await fs.readFile(statsPath, 'utf8');
+            const allStats = JSON.parse(data);
+            
+            // Filtrer les stats pour la date sélectionnée
+            const dayStats = allStats[guildId].filter(stat => 
+                stat.id.startsWith(`${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`)
+            );
+            
+            // Mettre à jour l'affichage
+            this.currentHourStats = new Map(dayStats.map(stat => [stat.id, stat]));
+            
+            return dayStats;
+        } catch (error) {
+            console.error('Erreur lors de la sélection de date:', error);
+            return [];
+        }
     }
 
     async stop() {
