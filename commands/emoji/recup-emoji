@@ -1,0 +1,68 @@
+const { AttachmentBuilder } = require('discord.js');
+const fs = require('fs').promises;
+const path = require('path');
+const Rarfile = require('rarfile');
+const fetch = require('node-fetch');
+
+module.exports = {
+    name: 'recup-emoji',
+    description: 'Télécharge tous les emojis du serveur dans un fichier .rar',
+    async execute(message, args) {
+        // Vérifier les permissions
+        if (!message.member.permissions.has('MANAGE_EMOJIS_AND_STICKERS')) {
+            return message.reply('❌ Vous n\'avez pas la permission de gérer les emojis.');
+        }
+
+        try {
+            // Créer un message de chargement
+            const loadingMsg = await message.reply('⌛ Récupération des emojis en cours...');
+
+            // Créer le dossier temporaire
+            const tempDir = path.join(__dirname, '../../temp/emojis');
+            await fs.mkdir(tempDir, { recursive: true });
+
+            // Récupérer tous les emojis
+            const emojis = message.guild.emojis.cache;
+            let downloadedCount = 0;
+
+            // Télécharger chaque emoji
+            for (const [id, emoji] of emojis) {
+                const extension = emoji.animated ? 'gif' : 'png';
+                const fileName = `${emoji.name}-${id}.${extension}`;
+                const filePath = path.join(tempDir, fileName);
+
+                const response = await fetch(emoji.url);
+                const buffer = await response.buffer();
+                await fs.writeFile(filePath, buffer);
+                downloadedCount++;
+
+                // Mettre à jour le message de chargement tous les 5 emojis
+                if (downloadedCount % 5 === 0) {
+                    await loadingMsg.edit(`⌛ Téléchargement des emojis... ${downloadedCount}/${emojis.size}`);
+                }
+            }
+
+            // Créer l'archive RAR
+            const rarPath = path.join(tempDir, 'emojis.rar');
+            const rar = new Rarfile(rarPath);
+            await rar.create(tempDir, ['*.png', '*.gif']);
+
+            // Envoyer le fichier
+            const attachment = new AttachmentBuilder(rarPath, {
+                name: `${message.guild.name}-emojis.rar`
+            });
+            await message.reply({
+                content: `✅ Archive des emojis créée ! ${emojis.size} emojis récupérés.`,
+                files: [attachment]
+            });
+
+            // Nettoyer les fichiers temporaires
+            await fs.rm(tempDir, { recursive: true, force: true });
+            await loadingMsg.delete().catch(() => {});
+
+        } catch (error) {
+            console.error('Erreur lors de la récupération des emojis:', error);
+            return message.reply('❌ Une erreur est survenue lors de la récupération des emojis.');
+        }
+    },
+};
