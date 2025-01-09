@@ -302,6 +302,10 @@ function checkKeyword(message, keyword) {
     let keywordText = keyword.keyword.toLowerCase();
     let keywordList = keyword.keywordList || [];
     
+    console.log('Message reçu:', messageContent);
+    console.log('Mot-clé à vérifier:', keywordText);
+    console.log('Liste des variantes:', keywordList);
+
     // Liste des variantes à vérifier
     let wordsToCheck = [keywordText, ...keywordList];
 
@@ -311,24 +315,31 @@ function checkKeyword(message, keyword) {
         wordsToCheck = wordsToCheck.map(word => 
             normalizeSpecialChars(word.normalize('NFKC'))
         );
+        console.log('Après normalisation police:', messageContent, wordsToCheck);
     }
 
     if (keyword.detectCharacters) {
         messageContent = normalizeText(messageContent);
         wordsToCheck = wordsToCheck.map(word => normalizeText(word));
+        console.log('Après normalisation caractères:', messageContent, wordsToCheck);
     }
 
     if (keyword.detectSpaces) {
         messageContent = cleanSpaces(messageContent);
         wordsToCheck = wordsToCheck.map(word => cleanSpaces(word));
+        console.log('Après suppression espaces:', messageContent, wordsToCheck);
     }
 
     // Vérifier si l'un des mots est inclus dans le message
-    return wordsToCheck.some(word => {
-        // Ignorer la casse et les caractères spéciaux
+    const found = wordsToCheck.some(word => {
         const processedWord = word.toLowerCase();
-        return messageContent.includes(processedWord);
+        const isIncluded = messageContent.includes(processedWord);
+        console.log(`Vérification de '${processedWord}' dans '${messageContent}': ${isIncluded}`);
+        return isIncluded;
     });
+
+    console.log('Mot trouvé:', found);
+    return found;
 }
 
 const createConfigEmbed = (config, guild) => {

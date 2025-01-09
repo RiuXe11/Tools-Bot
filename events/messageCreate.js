@@ -14,6 +14,7 @@ module.exports = {
         // Vérification des mots-clés avant le check du préfixe
         try {
             const keywords = await loadKeywords();
+            console.log('Mots-clés chargés:', keywords);
             // Vérifier chaque mot-clé
             for (const keyword of keywords) {
                 if (checkKeyword(message, keyword)) { // Utilisation de la nouvelle fonction de vérification
