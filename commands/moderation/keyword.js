@@ -298,43 +298,44 @@ const handleKeywordList = async (interaction, config) => {
 
 // Modifiez la fonction checkKeyword qui sera utilisée dans messageCreate.js
 function checkKeyword(message, keyword) {
-    let messageContent = message.content.toLowerCase();
-    let keywordText = keyword.keyword.toLowerCase();
+    let messageContent = message.content;
+    let keywordText = keyword.keyword;
     let keywordList = keyword.keywordList || [];
     
-    console.log('Message reçu:', messageContent);
-    console.log('Mot-clé à vérifier:', keywordText);
-    console.log('Liste des variantes:', keywordList);
-
-    // Liste des variantes à vérifier
-    let wordsToCheck = [keywordText, ...keywordList];
-
-    // Normalisation du message selon les options
+    console.log('Message original:', messageContent);
+    
+    // Si la détection de police est activée, on normalise d'abord les caractères spéciaux
     if (keyword.detectFont) {
-        messageContent = normalizeSpecialChars(messageContent.normalize('NFKC'));
-        wordsToCheck = wordsToCheck.map(word => 
-            normalizeSpecialChars(word.normalize('NFKC'))
-        );
-        console.log('Après normalisation police:', messageContent, wordsToCheck);
+        messageContent = normalizeSpecialChars(messageContent);
+        console.log('Après normalisation des caractères spéciaux:', messageContent);
     }
-
+    
+    // Ensuite on met tout en minuscules
+    messageContent = messageContent.toLowerCase();
+    keywordText = keywordText.toLowerCase();
+    keywordList = keywordList.map(word => word.toLowerCase());
+    
+    // Créer la liste des mots à vérifier
+    let wordsToCheck = [keywordText, ...keywordList];
+    
+    // Normalisation des caractères accentués si l'option est activée
     if (keyword.detectCharacters) {
         messageContent = normalizeText(messageContent);
         wordsToCheck = wordsToCheck.map(word => normalizeText(word));
-        console.log('Après normalisation caractères:', messageContent, wordsToCheck);
+        console.log('Après normalisation accents:', messageContent, wordsToCheck);
     }
 
+    // Suppression des espaces si l'option est activée
     if (keyword.detectSpaces) {
         messageContent = cleanSpaces(messageContent);
         wordsToCheck = wordsToCheck.map(word => cleanSpaces(word));
         console.log('Après suppression espaces:', messageContent, wordsToCheck);
     }
 
-    // Vérifier si l'un des mots est inclus dans le message
+    // Vérification finale
     const found = wordsToCheck.some(word => {
-        const processedWord = word.toLowerCase();
-        const isIncluded = messageContent.includes(processedWord);
-        console.log(`Vérification de '${processedWord}' dans '${messageContent}': ${isIncluded}`);
+        const isIncluded = messageContent.includes(word);
+        console.log(`Vérification de '${word}' dans '${messageContent}': ${isIncluded}`);
         return isIncluded;
     });
 
