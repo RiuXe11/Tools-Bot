@@ -418,9 +418,9 @@ const applySanction = async (message, keyword) => {
         await message.delete().catch(console.error);
 
         let logMessage = `🚨 **Sanction Automatique**\n`;
-        logMessage += `👤 Utilisateur: ${member.user.tag} (${member.id})\n`;
-        logMessage += `💬 Message supprimé: ${message.content}\n`;
-        logMessage += `📝 Mot-clé détecté: ${keyword.keyword}\n`;
+        logMessage += `👤 Utilisateur : <@${member.id}> (${member.id})\n`;
+        logMessage += `💬 Message supprimé : \`${message.content}\`\n`;
+        logMessage += `📝 Mot-clé détecté : \`${keyword.keyword}\`\n`;
 
         if (keyword.sanction.type === SANCTION_TYPES.WARN) {
             // Gérer les avertissements progressifs
@@ -467,19 +467,19 @@ const applySanction = async (message, keyword) => {
                 case SANCTION_TYPES.MUTE:
                     if (member.moderatable) {
                         await member.timeout(keyword.sanction.duration * 60 * 1000);
-                        logMessage += `🔇 Sanction: Mute pendant ${keyword.sanction.duration} minutes`;
+                        logMessage += `🔇 Sanction : Mute pendant ${keyword.sanction.duration} minutes`;
                     }
                     break;
                 case SANCTION_TYPES.KICK:
                     if (member.kickable) {
                         await member.kick();
-                        logMessage += `👢 Sanction: Expulsion`;
+                        logMessage += `👢 Sanction : Expulsion`;
                     }
                     break;
                 case SANCTION_TYPES.BAN:
                     if (member.bannable) {
                         await member.ban();
-                        logMessage += `🔨 Sanction: Bannissement`;
+                        logMessage += `🔨 Sanction : Bannissement`;
                     }
                     break;
             }
