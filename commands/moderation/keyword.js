@@ -13,6 +13,16 @@ const SANCTION_TYPES = {
     BAN: 'Bannissement'
 };
 
+function normalizeText(text) {
+    // Normalise les caractères spéciaux en caractères basiques
+    return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+function cleanSpaces(text) {
+    // Supprime tous les espaces
+    return text.replace(/\s/g, '');
+}
+
 const WARNINGS_FILE = path.join(__dirname, '../../data/keyword/warnings.json');
 
 async function ensureWarningsFile() {
@@ -116,25 +126,114 @@ const createMainEmbed = (keywords, guild) => {
     return embed;
 };
 
-const createConfigEmbed = (config) => {
+const handleKeywordList = async (interaction, config) => {
+    await interaction.reply({
+        content: "Entrez les mots-clés supplémentaires (un par ligne) :",
+        ephemeral: true
+    });
+
+    try {
+        const collected = await interaction.channel.awaitMessages({
+            filter: m => m.author.id === interaction.user.id,
+            max: 1,
+            time: 30000
+        });
+
+        const keywords = collected.first().content.split('\n').map(k => k.trim()).filter(k => k);
+        config.keywordList = keywords;
+        
+        await collected.first().delete().catch(() => {});
+        interaction.client.keywordConfig.set(interaction.user.id, config);
+
+        await interaction.editReply({
+            content: `✅ Liste de mots-clés ajoutée (${keywords.length} mots)`,
+            ephemeral: true
+        });
+
+        await interaction.message.edit({
+            embeds: [createConfigEmbed(config)],
+            components: updateButtons(config, false)
+        });
+    } catch (error) {
+        await interaction.editReply({
+            content: "Temps écoulé ou erreur, veuillez réessayer.",
+            ephemeral: true
+        });
+    }
+};
+
+// Modifiez la fonction checkKeyword qui sera utilisée dans messageCreate.js
+function checkKeyword(message, keyword) {
+    let messageContent = message.content.toLowerCase();
+    let keywordText = keyword.keyword.toLowerCase();
+    let keywordList = keyword.keywordList || [];
+    
+    // Créer la liste complète des mots à vérifier
+    let wordsToCheck = [keywordText, ...keywordList];
+
+    // Appliquer les transformations selon les options
+    if (keyword.detectCharacters) {
+        messageContent = normalizeText(messageContent);
+        wordsToCheck = wordsToCheck.map(word => normalizeText(word));
+    }
+
+    if (keyword.detectSpaces) {
+        messageContent = cleanSpaces(messageContent);
+        wordsToCheck = wordsToCheck.map(word => cleanSpaces(word));
+    }
+
+    if (keyword.detectFont) {
+        // Transformation supplémentaire pour la police si nécessaire
+        messageContent = messageContent.normalize('NFKC');
+        wordsToCheck = wordsToCheck.map(word => word.normalize('NFKC'));
+    }
+
+    // Vérifier si l'un des mots est présent
+    return wordsToCheck.some(word => messageContent.includes(word));
+}
+
+const createConfigEmbed = (config, guild) => {
     const embed = new EmbedBuilder()
         .setTitle('Configuration du mot-clé')
         .setDescription('Configurez votre nouveau mot-clé en utilisant les boutons ci-dessous.')
-        .setColor('#00ff99');
+        .setColor(guild ? colorManager.getColor(guild.id) : '#0099ff');
 
     if (config) {
         const fields = [];
         
+        // Mot-clé principal toujours en premier
         if (config.keyword) {
-            fields.push({ name: 'Mot-clé', value: config.keyword, inline: true });
+            fields.push({ 
+                name: '📝 Mot-clé principal', 
+                value: config.keyword, 
+                inline: true 
+            });
         }
 
-        fields.push({
-            name: 'Sanction',
-            value: config.sanction ? `${config.sanction.type}${config.sanction.duration ? ` (${config.sanction.duration} minutes)` : ''}` : 'Aucune',
-            inline: true
-        });
+        // Liste des variantes ensuite
+        if (config.keywordList?.length > 0) {
+            fields.push({ 
+                name: '📋 Liste des variantes', 
+                value: config.keywordList.join(', '), 
+                inline: false 
+            });
+        }
 
+        // Options de détection
+        const detectionOptions = [];
+        if (config.detectCharacters) detectionOptions.push('✅ Caractères spéciaux');
+        if (config.detectFont) detectionOptions.push('✅ Police');
+        if (config.detectSpaces) detectionOptions.push('✅ Espaces');
+        
+        if (detectionOptions.length > 0) {
+            fields.push({ 
+                name: '🔍 Options de détection', 
+                value: detectionOptions.join('\n'), 
+                inline: false 
+            });
+        }
+
+        // Salon de logs
         if (config.logsChannel) {
             fields.push({
                 name: 'Salon Logs',
@@ -143,29 +242,38 @@ const createConfigEmbed = (config) => {
             });
         }
 
-        if (config.sanction && config.sanction.type === SANCTION_TYPES.WARN) {
-            fields.push({
-                name: 'Type de sanction',
-                value: 'Système d\'avertissements',
-                inline: true
-            });
-        
-            config.sanction.warnings.forEach((warning, index) => {
-                let warnDetails = `**Avertissement ${index + 1}/${config.sanction.maxWarnings}**\n`;
-                if (warning.role) warnDetails += `• Rôle: <@&${warning.role}>\n`;
-                if (warning.sanction) warnDetails += `• Sanction: ${warning.sanction}`;
-                if (warning.duration) warnDetails += ` (${warning.duration}min)`;
-                
+        // Sanctions à la fin
+        if (config.sanction) {
+            if (config.sanction.type === SANCTION_TYPES.WARN) {
                 fields.push({
-                    name: `⚠️ Niveau ${index + 1}`,
-                    value: warnDetails,
-                    inline: false
+                    name: 'Type de sanction',
+                    value: 'Système d\'avertissements',
+                    inline: true
                 });
-            });
+            
+                config.sanction.warnings.forEach((warning, index) => {
+                    let warnDetails = `**Avertissement ${index + 1}/${config.sanction.maxWarnings}**\n`;
+                    if (warning.role) warnDetails += `• Rôle: <@&${warning.role}>\n`;
+                    if (warning.sanction) warnDetails += `• Sanction: ${warning.sanction}`;
+                    if (warning.duration) warnDetails += ` (${warning.duration}min)`;
+                    
+                    fields.push({
+                        name: `⚠️ Niveau ${index + 1}`,
+                        value: warnDetails,
+                        inline: false
+                    });
+                });
+            } else {
+                fields.push({
+                    name: 'Sanction',
+                    value: `${config.sanction.type}${config.sanction.duration ? ` (${config.sanction.duration} minutes)` : ''}`,
+                    inline: true
+                });
+            }
         } else {
             fields.push({
                 name: 'Sanction',
-                value: config.sanction ? `${config.sanction.type}${config.sanction.duration ? ` (${config.sanction.duration} minutes)` : ''}` : 'Aucune',
+                value: 'Aucune',
                 inline: true
             });
         }
@@ -186,6 +294,14 @@ const updateButtons = (config, isEditing = false) => {
                 .setLabel('Mot-clé')
                 .setStyle(ButtonStyle.Primary),
             new ButtonBuilder()
+                .setCustomId('keyword-set-list')
+                .setLabel('Liste')
+                .setStyle(ButtonStyle.Primary)
+        );
+
+    const buttons2 = new ActionRowBuilder()
+        .addComponents(
+            new ButtonBuilder()
                 .setCustomId('keyword-set-sanction')
                 .setLabel('Sanction')
                 .setStyle(ButtonStyle.Primary),
@@ -195,7 +311,23 @@ const updateButtons = (config, isEditing = false) => {
                 .setStyle(ButtonStyle.Secondary)
         );
 
-    const buttons2 = new ActionRowBuilder()
+    const buttons3 = new ActionRowBuilder()
+        .addComponents(
+            new ButtonBuilder()
+                .setCustomId('keyword-toggle-caractere')
+                .setLabel('Caractère')
+                .setStyle(config.detectCharacters ? ButtonStyle.Success : ButtonStyle.Secondary),
+            new ButtonBuilder()
+                .setCustomId('keyword-toggle-police')
+                .setLabel('Police')
+                .setStyle(config.detectFont ? ButtonStyle.Success : ButtonStyle.Secondary),
+            new ButtonBuilder()
+                .setCustomId('keyword-toggle-space')
+                .setLabel('Space')
+                .setStyle(config.detectSpaces ? ButtonStyle.Success : ButtonStyle.Secondary)
+        );
+
+    const buttons4 = new ActionRowBuilder()
         .addComponents(
             new ButtonBuilder()
                 .setCustomId('keyword-save')
@@ -208,7 +340,7 @@ const updateButtons = (config, isEditing = false) => {
         );
 
     if (isEditing) {
-        buttons2.addComponents(
+        buttons4.addComponents(
             new ButtonBuilder()
                 .setCustomId('keyword-delete')
                 .setLabel('Supprimer')
@@ -216,7 +348,7 @@ const updateButtons = (config, isEditing = false) => {
         );
     }
 
-    return [buttons1, buttons2];
+    return [buttons1, buttons2, buttons3, buttons4];
 };
 
 const handleWarningConfig = async (interaction, config, warningNumber, totalWarnings) => {
@@ -509,6 +641,7 @@ module.exports = {
     applySanction,
     getUserWarnings,
     updateUserWarnings,
+    checkKeyword,
 
     async execute(message, args) {
         const keywords = await loadKeywords();
@@ -770,6 +903,37 @@ module.exports = {
                             ephemeral: true
                         });
                     }
+                    break;
+
+                case 'keyword-set-list':
+                    await handleKeywordList(interaction, config);
+                    break;
+                
+                case 'keyword-toggle-caractere':
+                    config.detectCharacters = !config.detectCharacters;
+                    interaction.client.keywordConfig.set(interaction.user.id, config);
+                    await interaction.update({
+                        embeds: [createConfigEmbed(config)],
+                        components: updateButtons(config, false)
+                    });
+                    break;
+                
+                case 'keyword-toggle-police':
+                    config.detectFont = !config.detectFont;
+                    interaction.client.keywordConfig.set(interaction.user.id, config);
+                    await interaction.update({
+                        embeds: [createConfigEmbed(config)],
+                        components: updateButtons(config, false)
+                    });
+                    break;
+                
+                case 'keyword-toggle-space':
+                    config.detectSpaces = !config.detectSpaces;
+                    interaction.client.keywordConfig.set(interaction.user.id, config);
+                    await interaction.update({
+                        embeds: [createConfigEmbed(config)],
+                        components: updateButtons(config, false)
+                    });
                     break;
             }
         }
