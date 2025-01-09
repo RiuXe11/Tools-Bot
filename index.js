@@ -14,12 +14,14 @@ const client = new Client({
         GatewayIntentBits.GuildMembers,
         GatewayIntentBits.GuildPresences,
         GatewayIntentBits.GuildMessageTyping,
-        GatewayIntentBits.GuildEmojisAndStickers
+        GatewayIntentBits.GuildEmojisAndStickers,
+        GatewayIntentBits.GuildModeration,
+        GatewayIntentBits.GuildMessageReactions 
     ],
-    partials: ['MESSAGE', 'CHANNEL', 'REACTION'], // Ajout des partials
+    partials: ['MESSAGE', 'CHANNEL', 'REACTION'],
     ws: {
         properties: {
-            $browser: 'Discord Android', // Modification pour éviter des problèmes de worker
+            $browser: 'Discord Android',
             $device: 'Discord Android',
             $os: 'Android'
         }

@@ -21,6 +21,7 @@ const {
     generateHourlyStatsEmbed
 } = require('../commands/fivem/stats');
 const hourlyRecorder = require('../utils/hourlyRecorder');
+const keyword = require('../commands/moderation/keyword');
 
 class InteractionHandler {
     static async handleButton(interaction) {
@@ -260,6 +261,15 @@ module.exports = {
     name: 'interactionCreate',
     async execute(interaction) {
         try {
+            // Ajouter cette section pour gérer les interactions liées aux mots-clés
+            if (interaction.customId?.startsWith('keyword-') || 
+                interaction.customId === 'sanction-type-select' || 
+                (interaction.isStringSelectMenu() && interaction.customId === 'keyword-select')) {
+                await keyword.handleInteraction(interaction);
+                return;
+            }
+
+            // Gestion des autres interactions
             if (interaction.isButton()) {
                 await InteractionHandler.handleButton(interaction);
             } else if (interaction.isStringSelectMenu()) {
