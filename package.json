@@ -10,13 +10,13 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "adm-zip": "^0.5.16",
     "ascii-art": "^1.5.1",
     "axios": "^1.7.7",
     "crypto": "^1.0.1",
     "discord.js": "^14.17.2",
     "dotenv": "^16.4.5",
     "figlet": "^1.8.0",
-    "node-fetch": "^3.3.2",
-    "rarfile": "^0.2.3-1"
+    "node-fetch": "^3.3.2"
   }
 }

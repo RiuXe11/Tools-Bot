@@ -1,15 +1,15 @@
 const { AttachmentBuilder } = require('discord.js');
 const fs = require('fs').promises;
 const path = require('path');
-const Rarfile = require('rarfile');
-const fetch = require('node-fetch');
+const AdmZip = require('adm-zip');
+const axios = require('axios');
 
 module.exports = {
     name: 'recup-emoji',
-    description: 'Télécharge tous les emojis du serveur dans un fichier .rar',
+    description: 'Télécharge tous les emojis du serveur dans un fichier zip',
     async execute(message, args) {
         // Vérifier les permissions
-        if (!message.member.permissions.has('MANAGE_EMOJIS_AND_STICKERS')) {
+        if (!message.member.permissions.has('ManageEmojisAndStickers')) {
             return message.reply('❌ Vous n\'avez pas la permission de gérer les emojis.');
         }
 
@@ -21,6 +21,9 @@ module.exports = {
             const tempDir = path.join(__dirname, '../../temp/emojis');
             await fs.mkdir(tempDir, { recursive: true });
 
+            // Créer une nouvelle instance de zip
+            const zip = new AdmZip();
+
             // Récupérer tous les emojis
             const emojis = message.guild.emojis.cache;
             let downloadedCount = 0;
@@ -29,30 +32,36 @@ module.exports = {
             for (const [id, emoji] of emojis) {
                 const extension = emoji.animated ? 'gif' : 'png';
                 const fileName = `${emoji.name}-${id}.${extension}`;
-                const filePath = path.join(tempDir, fileName);
 
-                const response = await fetch(emoji.url);
-                const buffer = await response.buffer();
-                await fs.writeFile(filePath, buffer);
-                downloadedCount++;
+                try {
+                    // Télécharger l'emoji
+                    const response = await axios.get(emoji.url, { responseType: 'arraybuffer' });
+                    
+                    // Ajouter au zip
+                    zip.addFile(fileName, Buffer.from(response.data));
+                    
+                    downloadedCount++;
 
-                // Mettre à jour le message de chargement tous les 5 emojis
-                if (downloadedCount % 5 === 0) {
-                    await loadingMsg.edit(`⌛ Téléchargement des emojis... ${downloadedCount}/${emojis.size}`);
+                    // Mettre à jour le message de chargement tous les 5 emojis
+                    if (downloadedCount % 5 === 0) {
+                        await loadingMsg.edit(`⌛ Téléchargement des emojis... ${downloadedCount}/${emojis.size}`);
+                    }
+                } catch (err) {
+                    console.error(`Erreur lors du téléchargement de l'emoji ${emoji.name}:`, err);
                 }
             }
 
-            // Créer l'archive RAR
-            const rarPath = path.join(tempDir, 'emojis.rar');
-            const rar = new Rarfile(rarPath);
-            await rar.create(tempDir, ['*.png', '*.gif']);
+            // Générer le fichier zip
+            const zipPath = path.join(tempDir, 'emojis.zip');
+            zip.writeZip(zipPath);
 
             // Envoyer le fichier
-            const attachment = new AttachmentBuilder(rarPath, {
-                name: `${message.guild.name}-emojis.rar`
+            const attachment = new AttachmentBuilder(zipPath, {
+                name: `${message.guild.name}-emojis.zip`
             });
+
             await message.reply({
-                content: `✅ Archive des emojis créée ! ${emojis.size} emojis récupérés.`,
+                content: `✅ Archive des emojis créée ! ${downloadedCount} emojis sur ${emojis.size} récupérés.`,
                 files: [attachment]
             });
 
