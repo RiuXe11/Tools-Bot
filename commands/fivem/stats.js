@@ -89,12 +89,17 @@ async function getStatsForDate(guildId, selectedDate) {
 function generateChartUrl(data, title, guildId, showMinutes = false) {
     const color = colorManager.getColor(guildId).slice(1);
     
-    const labels = data.map(d => {
+    // Réduire le nombre de points de données si trop nombreux
+    let chartData = data;
+    if (data.length > 24) {
+        const step = Math.ceil(data.length / 24);
+        chartData = data.filter((_, index) => index % step === 0);
+    }
+    
+    const labels = chartData.map(d => {
         const date = new Date(d.timestamp);
         const localDate = new Date(date.getTime() + 3600000);
         return localDate.toLocaleString('fr-FR', { 
-            day: 'numeric',
-            month: 'numeric',
             hour: 'numeric',
             minute: showMinutes ? 'numeric' : undefined
         });
@@ -106,7 +111,7 @@ function generateChartUrl(data, title, guildId, showMinutes = false) {
             labels,
             datasets: [{
                 label: 'Joueurs',
-                data: data.map(d => d.players),
+                data: chartData.map(d => d.players),
                 borderColor: `#${color}`,
                 tension: 0.1,
                 fill: false
@@ -116,12 +121,11 @@ function generateChartUrl(data, title, guildId, showMinutes = false) {
             scales: { 
                 y: { beginAtZero: true },
                 x: {
-                    ticks: {
-                        autoSkip: true,
-                        maxRotation: 45,
-                        minRotation: 45
-                    }
+                    ticks: { maxRotation: 45 }
                 }
+            },
+            plugins: {
+                legend: { display: false }
             }
         }
     };
@@ -279,76 +283,93 @@ function createDaysPagination(currentPage, totalPages) {
 
 // Fonction pour afficher les jours d'un mois spécifique
 async function createDaysEmbed(guildId, selectedMonth, page = 0) {
-    const serverColor = colorManager.getColor(guildId);
-    const statsPath = path.join(__dirname, '../../data/serverstats.json');
-    const data = await fs.readFile(statsPath, 'utf8');
-    const allStats = JSON.parse(data);
-    const guildStats = allStats[guildId] || [];
-
-    // Filtrer les stats pour le mois sélectionné
-    const [year, month] = selectedMonth.split('-');
-    const daysInMonth = guildStats.filter(stat => {
-        const date = new Date(stat.timestamp);
-        return date.getFullYear() === parseInt(year) && 
-               (date.getMonth() + 1) === parseInt(month);
-    });
-
-    // Regrouper par jour avec moyenne correcte
-    const dailyStats = daysInMonth.reduce((acc, stat) => {
-        const date = new Date(stat.timestamp);
-        const day = date.getDate();
-        if (!acc[day]) {
-            acc[day] = {
-                players: [],
-                totalPlayers: 0,
-                count: 0
-            };
+    try {
+        if (!selectedMonth || typeof selectedMonth !== 'string') {
+            throw new Error('Mois invalide');
         }
-        // N'ajouter que les valeurs valides
-        if (typeof stat.players === 'number' && !isNaN(stat.players)) {
-            acc[day].players.push(stat.players);
-            acc[day].totalPlayers += stat.players;
-            acc[day].count++;
-        }
-        return acc;
-    }, {});
 
-    // Calculer les stats quotidiennes avec vérification des valeurs
-    const days = Object.entries(dailyStats).map(([day, stats]) => {
-        const maxPlayers = Math.max(...stats.players);
-        // Calculer la moyenne seulement s'il y a des données valides
-        const avgPlayers = stats.count > 0 
-            ? Math.round(stats.totalPlayers / stats.count) 
-            : 0;
-        
-        return { 
-            day: parseInt(day), 
-            maxPlayers: isFinite(maxPlayers) ? maxPlayers : 0,
-            avgPlayers
+        const serverColor = colorManager.getColor(guildId);
+        const statsPath = path.join(__dirname, '../../data/serverstats.json');
+        const data = await fs.readFile(statsPath, 'utf8');
+        const allStats = JSON.parse(data);
+        const guildStats = allStats[guildId] || [];
+
+        // Extraire année et mois de manière sécurisée
+        const [year, month] = selectedMonth.split('-').map(num => parseInt(num));
+        if (!year || !month) {
+            throw new Error('Format de date invalide');
+        }
+
+        // Filtrer les stats pour le mois sélectionné
+        const daysInMonth = guildStats.filter(stat => {
+            const date = new Date(stat.timestamp);
+            return date.getFullYear() === year && 
+                   (date.getMonth() + 1) === month;
+        });
+
+        // Regrouper par jour
+        const dailyStats = daysInMonth.reduce((acc, stat) => {
+            const date = new Date(stat.timestamp);
+            const day = date.getDate();
+            if (!acc[day]) {
+                acc[day] = {
+                    players: [],
+                    count: 0
+                };
+            }
+            if (typeof stat.players === 'number' && !isNaN(stat.players)) {
+                acc[day].players.push(stat.players);
+                acc[day].count++;
+            }
+            return acc;
+        }, {});
+
+        // Calculer les statistiques
+        const days = Object.entries(dailyStats)
+            .map(([day, stats]) => ({
+                day: parseInt(day),
+                maxPlayers: Math.max(...stats.players, 0),
+                avgPlayers: stats.count > 0 
+                    ? Math.round(stats.players.reduce((sum, p) => sum + p, 0) / stats.count)
+                    : 0
+            }))
+            .sort((a, b) => b.day - a.day);
+
+        const itemsPerPage = 10;
+        const startIdx = page * itemsPerPage;
+        const paginatedDays = days.slice(startIdx, startIdx + itemsPerPage);
+        const totalPages = Math.ceil(days.length / itemsPerPage);
+
+        const embed = new EmbedBuilder()
+            .setColor(serverColor)
+            .setTitle(`Statistiques quotidiennes - ${month}/${year}`)
+            .setTimestamp();
+
+        if (paginatedDays.length === 0) {
+            embed.setDescription('Aucune donnée disponible pour cette période');
+        } else {
+            embed.setDescription(paginatedDays.map(d => 
+                `**${String(d.day).padStart(2, '0')}/${String(month).padStart(2, '0')}** - Max: ${d.maxPlayers} | Moy: ${d.avgPlayers}`
+            ).join('\n'));
+        }
+
+        embed.setFooter({ text: `Page ${page + 1}/${Math.max(1, totalPages)}` });
+
+        return {
+            embed,
+            totalPages
         };
-    }).sort((a, b) => b.day - a.day);
-
-    const itemsPerPage = 10;
-    const startIdx = page * itemsPerPage;
-    const paginatedDays = days.slice(startIdx, startIdx + itemsPerPage);
-
-    const embed = new EmbedBuilder()
-        .setColor(serverColor)
-        .setTitle(`Statistiques quotidiennes - ${month}/${year}`)
-        .setDescription(paginatedDays.map(d => 
-            `**${String(d.day).padStart(2, '0')}/${month}** - Max: ${d.maxPlayers} | Moy: ${d.avgPlayers}`
-        ).join('\n'))
-        .setFooter({ text: `Page ${page + 1}/${Math.ceil(days.length / itemsPerPage)}` });
-
-    // Vérifier s'il y a des données
-    if (paginatedDays.length === 0) {
-        embed.setDescription('Aucune donnée disponible pour cette période');
+    } catch (error) {
+        console.error('Erreur dans createDaysEmbed:', error);
+        return {
+            embed: new EmbedBuilder()
+                .setColor('#FF0000')
+                .setTitle('Erreur')
+                .setDescription('Une erreur est survenue lors de la génération des statistiques.')
+                .setTimestamp(),
+            totalPages: 1
+        };
     }
-
-    return {
-        embed,
-        totalPages: Math.ceil(days.length / itemsPerPage)
-    };
 }
 
 async function handleStatsButton(interaction) {
