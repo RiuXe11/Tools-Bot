@@ -112,11 +112,6 @@ const SPECIAL_CHARS_MAP = {
     '8': 'b',
     '@': 'a',
 
-    // Caractères inversés
-    'ɐ': 'a', 'q': 'b', 'ɔ': 'c', 'p': 'd', 'ǝ': 'e', 'ɟ': 'f', 'ƃ': 'g', 'ɥ': 'h', 'ᴉ': 'i',
-    'ɾ': 'j', 'ʞ': 'k', 'ʃ': 'l', 'ɯ': 'm', 'u': 'n', 'o': 'o', 'd': 'p', 'b': 'q', 'ɹ': 'r',
-    's': 's', 'ʇ': 't', 'n': 'u', 'ʌ': 'v', 'ʍ': 'w', 'x': 'x', 'ʎ': 'y', 'z': 'z',
-
     // Caractères mathématiques supplémentaires
     '∀': 'A', '𝔹': 'B', 'ℂ': 'C', '𝔻': 'D', '𝔼': 'E', '𝔽': 'F', '𝔾': 'G', 'ℍ': 'H', '𝕀': 'I',
     '𝕁': 'J', '𝕂': 'K', '𝕃': 'L', '𝕄': 'M', 'ℕ': 'N', '𝕆': 'O', 'ℙ': 'P', 'ℚ': 'Q', 'ℝ': 'R',
@@ -148,13 +143,14 @@ function normalizeSpecialChars(text) {
 }
 
 function normalizeText(text) {
-    // Normalise les caractères spéciaux en caractères basiques
-    return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return text
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '') // Supprime les accents
+        .replace(/[^a-z0-9\s]/g, ''); // Ne garde que les lettres, chiffres et espaces
 }
 
 function cleanSpaces(text) {
-    // Supprime tous les espaces
-    return text.replace(/\s/g, '');
+    return text.replace(/\s+/g, '');
 }
 
 const WARNINGS_FILE = path.join(__dirname, '../../data/keyword/warnings.json');
@@ -296,51 +292,96 @@ const handleKeywordList = async (interaction, config) => {
     }
 };
 
-// Modifiez la fonction checkKeyword qui sera utilisée dans messageCreate.js
+function cleanText(text, config) {
+    let cleanedText = text.toLowerCase();
+    
+    // Log du texte initial
+    console.log('Texte initial:', cleanedText);
+    
+    if (config.detectFont) {
+        cleanedText = normalizeSpecialChars(cleanedText);
+        console.log('Après normalisation police:', cleanedText);
+    }
+    
+    if (config.detectCharacters) {
+        cleanedText = normalizeText(cleanedText);
+        console.log('Après normalisation accents:', cleanedText);
+    }
+    
+    if (config.detectSpaces) {
+        cleanedText = cleanSpaces(cleanedText);
+        console.log('Après suppression espaces:', cleanedText);
+    }
+    
+    return cleanedText;
+}
+
 function checkKeyword(message, keyword) {
+    if (!message.content || !keyword.keyword) return false;
+
+    // Traitement du message
     let messageContent = message.content;
-    let keywordText = keyword.keyword;
-    let keywordList = keyword.keywordList || [];
-    
+    const keywordContent = keyword.keyword;
     console.log('Message original:', messageContent);
-    
-    // Si la détection de police est activée, on normalise d'abord les caractères spéciaux
+
+    // Si détection des polices activée, normaliser le message d'abord
     if (keyword.detectFont) {
-        messageContent = normalizeSpecialChars(messageContent);
-        console.log('Après normalisation des caractères spéciaux:', messageContent);
+        for (const [special, normal] of Object.entries(SPECIAL_CHARS_MAP)) {
+            messageContent = messageContent.split(special).join(normal);
+        }
+        messageContent = messageContent.toLowerCase();
+        console.log('Après normalisation police:', messageContent);
+    } else {
+        messageContent = messageContent.toLowerCase();
     }
-    
-    // Ensuite on met tout en minuscules
-    messageContent = messageContent.toLowerCase();
-    keywordText = keywordText.toLowerCase();
-    keywordList = keywordList.map(word => word.toLowerCase());
-    
-    // Créer la liste des mots à vérifier
-    let wordsToCheck = [keywordText, ...keywordList];
-    
-    // Normalisation des caractères accentués si l'option est activée
+
+    // Traiter les accents
     if (keyword.detectCharacters) {
-        messageContent = normalizeText(messageContent);
-        wordsToCheck = wordsToCheck.map(word => normalizeText(word));
-        console.log('Après normalisation accents:', messageContent, wordsToCheck);
+        messageContent = messageContent
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')  // Supprime les accents
+            .replace(/[^a-z0-9\s]/g, '');     // Garde uniquement lettres, chiffres et espaces
+        console.log('Après normalisation accents:', messageContent);
     }
 
-    // Suppression des espaces si l'option est activée
+    // Traiter les espaces
     if (keyword.detectSpaces) {
-        messageContent = cleanSpaces(messageContent);
-        wordsToCheck = wordsToCheck.map(word => cleanSpaces(word));
-        console.log('Après suppression espaces:', messageContent, wordsToCheck);
+        messageContent = messageContent.replace(/\s+/g, '');
+        console.log('Après suppression espaces:', messageContent);
     }
 
-    // Vérification finale
-    const found = wordsToCheck.some(word => {
-        const isIncluded = messageContent.includes(word);
-        console.log(`Vérification de '${word}' dans '${messageContent}': ${isIncluded}`);
-        return isIncluded;
-    });
+    // Préparer les mots-clés à vérifier
+    const wordsToCheck = [keyword.keyword];
+    if (keyword.keywordList && Array.isArray(keyword.keywordList)) {
+        wordsToCheck.push(...keyword.keywordList);
+    }
 
-    console.log('Mot trouvé:', found);
-    return found;
+    // Vérifier chaque mot-clé
+    for (let word of wordsToCheck) {
+        let processedWord = word.toLowerCase();
+        
+        // Appliquer les mêmes transformations au mot-clé
+        if (keyword.detectCharacters) {
+            processedWord = processedWord
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^a-z0-9\s]/g, '');
+        }
+        
+        if (keyword.detectSpaces) {
+            processedWord = processedWord.replace(/\s+/g, '');
+        }
+
+        console.log(`Vérification de '${processedWord}' dans '${messageContent}'`);
+        
+        if (messageContent.includes(processedWord)) {
+            console.log('Mot trouvé:', true);
+            return true;
+        }
+    }
+
+    console.log('Mot trouvé:', false);
+    return false;
 }
 
 const createConfigEmbed = (config, guild) => {
@@ -793,6 +834,8 @@ module.exports = {
     getUserWarnings,
     updateUserWarnings,
     checkKeyword,
+    cleanSpaces,
+    normalizeText,
 
     async execute(message, args) {
         const keywords = await loadKeywords();

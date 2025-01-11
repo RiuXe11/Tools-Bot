@@ -279,7 +279,7 @@ function createDaysPagination(currentPage, totalPages) {
 
 // Fonction pour afficher les jours d'un mois spécifique
 async function createDaysEmbed(guildId, selectedMonth, page = 0) {
-    const serverColor = colorManager.getColor(guildId); // On utilise directement guildId
+    const serverColor = colorManager.getColor(guildId);
     const statsPath = path.join(__dirname, '../../data/serverstats.json');
     const data = await fs.readFile(statsPath, 'utf8');
     const allStats = JSON.parse(data);
@@ -293,20 +293,39 @@ async function createDaysEmbed(guildId, selectedMonth, page = 0) {
                (date.getMonth() + 1) === parseInt(month);
     });
 
-    // Regrouper par jour
+    // Regrouper par jour avec moyenne correcte
     const dailyStats = daysInMonth.reduce((acc, stat) => {
         const date = new Date(stat.timestamp);
         const day = date.getDate();
-        if (!acc[day]) acc[day] = [];
-        acc[day].push(stat);
+        if (!acc[day]) {
+            acc[day] = {
+                players: [],
+                totalPlayers: 0,
+                count: 0
+            };
+        }
+        // N'ajouter que les valeurs valides
+        if (typeof stat.players === 'number' && !isNaN(stat.players)) {
+            acc[day].players.push(stat.players);
+            acc[day].totalPlayers += stat.players;
+            acc[day].count++;
+        }
         return acc;
     }, {});
 
-    // Calculer les stats quotidiennes
+    // Calculer les stats quotidiennes avec vérification des valeurs
     const days = Object.entries(dailyStats).map(([day, stats]) => {
-        const maxPlayers = Math.max(...stats.map(s => s.players));
-        const avgPlayers = Math.round(stats.reduce((sum, s) => sum + s.players, 0) / stats.length);
-        return { day: parseInt(day), maxPlayers, avgPlayers };
+        const maxPlayers = Math.max(...stats.players);
+        // Calculer la moyenne seulement s'il y a des données valides
+        const avgPlayers = stats.count > 0 
+            ? Math.round(stats.totalPlayers / stats.count) 
+            : 0;
+        
+        return { 
+            day: parseInt(day), 
+            maxPlayers: isFinite(maxPlayers) ? maxPlayers : 0,
+            avgPlayers
+        };
     }).sort((a, b) => b.day - a.day);
 
     const itemsPerPage = 10;
@@ -317,14 +336,40 @@ async function createDaysEmbed(guildId, selectedMonth, page = 0) {
         .setColor(serverColor)
         .setTitle(`Statistiques quotidiennes - ${month}/${year}`)
         .setDescription(paginatedDays.map(d => 
-            `**${d.day}/${month}** - Max: ${d.maxPlayers} | Moy: ${d.avgPlayers}`
+            `**${String(d.day).padStart(2, '0')}/${month}** - Max: ${d.maxPlayers} | Moy: ${d.avgPlayers}`
         ).join('\n'))
         .setFooter({ text: `Page ${page + 1}/${Math.ceil(days.length / itemsPerPage)}` });
+
+    // Vérifier s'il y a des données
+    if (paginatedDays.length === 0) {
+        embed.setDescription('Aucune donnée disponible pour cette période');
+    }
 
     return {
         embed,
         totalPages: Math.ceil(days.length / itemsPerPage)
     };
+}
+
+async function handleStatsButton(interaction) {
+    if (!interaction.isButton()) return;
+
+    const customId = interaction.customId;
+    
+    if (customId === 'prev_page' || customId === 'next_page') {
+        const currentPage = parseInt(interaction.message.embeds[0].footer.text.split('/')[0].split(' ')[1]) - 1;
+        const selectedMonth = interaction.message.embeds[0].title.split(' - ')[1].split('/').reverse().join('-');
+        
+        const newPage = customId === 'prev_page' ? currentPage - 1 : currentPage + 1;
+        const { embed, totalPages } = await createDaysEmbed(interaction.guildId, selectedMonth, newPage);
+        
+        const components = [createDaysPagination(newPage, totalPages)];
+        
+        await interaction.update({ 
+            embeds: [embed],
+            components 
+        });
+    }
 }
 
 async function generateServerPerfEmbed(interaction) {
@@ -419,6 +464,7 @@ module.exports = {
     createMonthSelectMenu,
     createDaysPagination,
     createDaysEmbed,
+    handleStatsButton,
     generateServerPerfEmbed,
     generateRecordsEmbed,
     generateHourlyStatsEmbed,
