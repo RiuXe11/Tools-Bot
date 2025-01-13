@@ -49,7 +49,7 @@ async function validateAndFormatAddress(address) {
     throw new Error('Format d\'adresse invalide. Utilisez IP:PORT ou cfx.re/join/XXXXX');
 }
 
-async function getFivemServerInfo(addressData) {
+async function getFivemServerInfo(addressData, guildId) {
     if (cachedData && Date.now() - lastFetch < CACHE_DURATION) {
         return cachedData;
     }
@@ -62,12 +62,17 @@ async function getFivemServerInfo(addressData) {
         };
 
         let endpoint;
+        let playerList = [];
+        
         if (addressData.type === 'cfx') {
             const cfxId = addressData.address.split('cfx.re/join/').pop();
             endpoint = `https://servers-frontend.fivem.net/api/servers/single/${cfxId}`;
+            // Pour CFX, les joueurs sont inclus dans la réponse principale
         } else {
             const [ip, port] = addressData.address.split(':');
             endpoint = `http://${ip}:${port}/info.json`;
+            // Pour IP:PORT, on fait une requête séparée pour les joueurs
+            playerList = await getPlayerList(ip, port);
         }
 
         const response = await axios.get(endpoint, {
@@ -83,34 +88,76 @@ async function getFivemServerInfo(addressData) {
         }
 
         const serverData = addressData.type === 'cfx' ? response.data.Data : response.data;
-        const realPlayers = serverData?.clients || serverData?.players || 0;
         
+        // Si c'est un serveur CFX, on extrait la liste des joueurs de la réponse
+        if (addressData.type === 'cfx' && serverData.players) {
+            playerList = serverData.players;
+        }
+
+        const realPlayers = serverData?.clients || serverData?.players?.length || 0;
         const displayedPlayers = realPlayers === 0 ? 3 : realPlayers + 3;
 
-        return {
+        // Préparer les données des joueurs pour le tracker
+        const playerInfos = playerList.map(player => ({
+            id: player.id || player.identifiers?.find(id => id.startsWith('steam:')) || player.name,
+            name: player.name,
+            // Ajoutez d'autres informations si disponibles
+        }));
+
+        // Mettre à jour le tracker de joueurs
+        if (guildId) {  // Assurez-vous d'avoir le guildId
+            await playerTracker.updatePlayers(guildId, playerInfos);
+        }
+
+        const serverInfo = {
             hostname: serverData?.hostname || 'Non disponible',
             gametype: serverData?.vars?.gametype || serverData?.gametype || 'Non disponible',
             mapname: serverData?.vars?.mapname || serverData?.mapname || 'Non disponible',
             players: displayedPlayers,
-            realPlayers: realPlayers, // Garder le vrai nombre pour les logs et autres besoins
+            realPlayers: realPlayers,
             maxPlayers: serverData?.sv_maxclients || serverData?.maxPlayers || 0,
-            status: true
+            status: true,
+            playerList: playerInfos // Ajouter la liste des joueurs aux informations du serveur
         };
         
         lastFetch = Date.now();
-        cachedData = serverData;
-        return serverData;
+        cachedData = serverInfo;
+        return serverInfo;
     } catch (error) {
         console.error('Erreur lors de la récupération des informations:', error.message);
         return {
             hostname: 'Non disponible',
             gametype: 'Non disponible',
             mapname: 'Non disponible',
-            players: 3, // Afficher 3 par défaut même en cas d'erreur
-            realPlayers: 0, // Le vrai nombre pour les logs
+            players: 3,
+            realPlayers: 0,
             maxPlayers: 0,
-            status: false
+            status: false,
+            playerList: []
         };
+    }
+}
+
+async function getPlayerList(addressData) {
+    try {
+        let endpoint;
+        if (addressData.type === 'cfx') {
+            const cfxId = addressData.address.split('cfx.re/join/').pop();
+            endpoint = `https://servers-frontend.fivem.net/api/servers/single/${cfxId}`;
+            const response = await axios.get(endpoint);
+            return response.data.Data.players || [];
+        } else {
+            const [ip, port] = addressData.address.split(':');
+            endpoint = `http://${ip}:${port}/players.json`;
+            const response = await axios.get(endpoint, {
+                timeout: 5000,
+                validateStatus: status => status < 500
+            });
+            return response.data;
+        }
+    } catch (error) {
+        console.error('Erreur lors de la récupération des joueurs:', error.message);
+        return [];
     }
 }
 

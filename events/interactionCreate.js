@@ -6,6 +6,7 @@ const {
     EmbedBuilder,
     ButtonBuilder,
     ButtonStyle,
+    StringSelectMenuBuilder,
     PermissionFlagsBits 
 } = require('discord.js');
 const { getFivemServerInfo, getServerAddress, setServerAddress, validateAndFormatAddress } = require('../utils/fivem');
@@ -22,6 +23,7 @@ const {
 } = require('../commands/fivem/stats');
 const hourlyRecorder = require('../utils/hourlyRecorder');
 const keyword = require('../commands/moderation/keyword');
+const playerTracker = require('../utils/playerTracker');
 
 class InteractionHandler {
     static async handleButton(interaction) {
@@ -51,6 +53,80 @@ class InteractionHandler {
             case 'custom_date':
                 return this.handleDatePicker(interaction);
         }
+
+        if (interaction.customId.startsWith('player_')) {
+            const [_, type, playerId] = interaction.customId.split('_');
+            
+            if (type === 'stats') {
+                const statsEmbed = await playerTracker.generatePlayerStatsEmbed(interaction.guildId, playerId);
+                
+                // Créer les boutons de navigation
+                const viewButtons = new ActionRowBuilder()
+                    .addComponents(
+                        new ButtonBuilder()
+                            .setCustomId(`player_calendar_${playerId}`)
+                            .setLabel('Calendrier d\'activité')
+                            .setStyle(ButtonStyle.Secondary),
+                        new ButtonBuilder()
+                            .setCustomId('players_stats')
+                            .setLabel('Retour à la liste')
+                            .setStyle(ButtonStyle.Secondary)
+                    );
+    
+                return interaction.update({ 
+                    embeds: [statsEmbed],
+                    components: [viewButtons]
+                });
+            } else if (type === 'calendar') {
+                return this.handlePlayerCalendar(interaction, playerId);
+            }
+        }
+
+        if (interaction.customId === 'players_stats') {
+            return this.handlePlayerStatsMenu(interaction);
+        }
+
+        if (interaction.customId === 'search_player') {
+            const modal = new ModalBuilder()
+                .setCustomId('search_player_modal')
+                .setTitle('Rechercher un joueur')
+                .addComponents(
+                    new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('search_term')
+                            .setLabel('Pseudo du joueur')
+                            .setStyle(TextInputStyle.Short)
+                            .setPlaceholder('Entrez le pseudo à rechercher...')
+                            .setRequired(true)
+                    )
+                );
+
+            await interaction.showModal(modal);
+            return;
+        }
+
+        if (interaction.customId === 'select_player_id') {
+            const modal = new ModalBuilder()
+                .setCustomId('select_player_modal')
+                .setTitle('Sélectionner un joueur')
+                .addComponents(
+                    new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('player_list_id')
+                            .setLabel('ID du joueur')
+                            .setStyle(TextInputStyle.Short)
+                            .setPlaceholder('Entrez l\'ID du joueur (ex: 01, 02, ...)')
+                            .setRequired(true)
+                    )
+                );
+
+            await interaction.showModal(modal);
+            return;
+        }
+
+        if (interaction.customId === 'cancel_search') {
+            return this.handlePlayerStatsMenu(interaction);
+        }
     }
 
     static async handleSelectMenu(interaction) {
@@ -71,9 +147,15 @@ class InteractionHandler {
                 case 'hourly_stats':
                     const hourlyEmbed = await generateHourlyStatsEmbed(interaction);
                     return interaction.update({ embeds: [hourlyEmbed] });
+                case 'players_stats':
+                    return this.handlePlayerStatsMenu(interaction);
             }
         } else if (interaction.customId === 'month_select') {
             await this.handleMonthSelect(interaction);
+        } else if (interaction.customId === 'select_player') {
+            return this.handlePlayerSelection(interaction);
+        } else if (interaction.customId.startsWith('player_month_')) {
+            return this.handlePlayerMonth(interaction);
         }
     }
 
@@ -89,6 +171,60 @@ class InteractionHandler {
             
             const embed = await generateFivemStatsEmbed(interaction, period, `le ${dateStr}`);
             return interaction.update({ embeds: [embed], components: [fivemTimeButtons] });
+        }
+
+        if (interaction.customId === 'search_player_modal') {
+            const searchTerm = interaction.fields.getTextInputValue('search_term');
+            const { embed, components } = await playerTracker.generatePlayerListEmbed(interaction.guildId, searchTerm);
+            await interaction.update({ embeds: [embed], components });
+            return;
+        }
+
+        if (interaction.customId === 'select_player_modal') {
+            const listId = interaction.fields.getTextInputValue('player_list_id');
+            
+            // Charger la liste des joueurs pour vérifier l'ID
+            const allData = await playerTracker.loadData();
+            const guildData = allData[interaction.guildId] || {};
+            const players = Object.entries(guildData)
+                .map(([id, data], index) => ({
+                    listId: (index + 1).toString().padStart(2, '0'),
+                    id,
+                    data
+                }))
+                .sort((a, b) => b.data.totalTime - a.data.totalTime);
+
+            const player = players.find(p => p.listId === listId);
+            
+            if (!player) {
+                const { embed, components } = await playerTracker.generatePlayerListEmbed(interaction.guildId);
+                embed.setDescription(embed.data.description + '\n\n❌ ID invalide. Veuillez réessayer.');
+                await interaction.update({ embeds: [embed], components });
+                return;
+            }
+
+            // Afficher les statistiques du joueur
+            const viewButtons = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(`player_stats_${player.id}`)
+                        .setLabel('Statistiques générales')
+                        .setStyle(ButtonStyle.Primary),
+                    new ButtonBuilder()
+                        .setCustomId(`player_calendar_${player.id}`)
+                        .setLabel('Calendrier d\'activité')
+                        .setStyle(ButtonStyle.Secondary),
+                    new ButtonBuilder()
+                        .setCustomId('players_stats')
+                        .setLabel('Retour à la liste')
+                        .setStyle(ButtonStyle.Secondary)
+                );
+
+            const statsEmbed = await playerTracker.generatePlayerStatsEmbed(interaction.guildId, player.id);
+            await interaction.update({
+                embeds: [statsEmbed],
+                components: [viewButtons]
+            });
         }
     }
 
@@ -254,6 +390,88 @@ class InteractionHandler {
             );
     
         await interaction.showModal(modal);
+    }
+
+    static async handlePlayerStatsMenu(interaction) {
+        // Afficher la liste des joueurs
+        const { embed, components } = await playerTracker.generatePlayerListEmbed(interaction.guildId);
+        await interaction.update({ embeds: [embed], components });
+    }
+
+    static async handlePlayerSelection(interaction) {
+        const playerId = interaction.values[0];
+        
+        // Créer les boutons pour les différentes vues
+        const viewButtons = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`player_stats_${playerId}`)
+                    .setLabel('Statistiques générales')
+                    .setStyle(ButtonStyle.Primary),
+                new ButtonBuilder()
+                    .setCustomId(`player_calendar_${playerId}`)
+                    .setLabel('Calendrier d\'activité')
+                    .setStyle(ButtonStyle.Secondary)
+            );
+
+        // Obtenir et afficher les stats du joueur
+        const statsEmbed = await playerTracker.generatePlayerStatsEmbed(interaction.guildId, playerId);
+        await interaction.update({
+            embeds: [statsEmbed],
+            components: [viewButtons]
+        });
+    }
+
+    static async handlePlayerCalendar(interaction, playerId) {
+        // Créer le menu de sélection du mois
+        const now = new Date();
+        const monthsMenu = new ActionRowBuilder()
+            .addComponents(
+                new StringSelectMenuBuilder()
+                    .setCustomId(`player_month_${playerId}`)
+                    .setPlaceholder('Sélectionner un mois')
+                    .addOptions(
+                        Array.from({ length: 6 }, (_, i) => {
+                            const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                            const month = String(date.getMonth() + 1).padStart(2, '0');
+                            const year = date.getFullYear();
+                            return {
+                                label: `${month}/${year}`,
+                                value: `${year}-${month}`,
+                                emoji: '📅'
+                            };
+                        })
+                    )
+            );
+
+        await interaction.update({
+            components: [monthsMenu]
+        });
+    }
+
+    static async handlePlayerMonth(interaction) {
+        const [_, playerId] = interaction.customId.split('player_month_');
+        const selectedMonth = interaction.values[0];
+        
+        const calendarEmbed = await playerTracker.generatePlayerCalendarEmbed(
+            interaction.guildId,
+            playerId,
+            selectedMonth
+        );
+
+        // Ajouter un bouton de retour
+        const backButton = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`player_stats_${playerId}`)
+                    .setLabel('Retour aux statistiques')
+                    .setStyle(ButtonStyle.Secondary)
+            );
+
+        await interaction.update({
+            embeds: [calendarEmbed],
+            components: [backButton]
+        });
     }
 }
 

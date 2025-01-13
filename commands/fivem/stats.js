@@ -10,6 +10,7 @@ const fs = require('fs').promises;
 const path = require('path');
 const colorManager = require('../../utils/colors');
 const fivemCache = require('../../utils/fivemCache');
+const playerTracker = require('../../utils/playerTracker');
 
 // Menu principal des statistiques
 const mainStatsMenu = new ActionRowBuilder()
@@ -41,6 +42,12 @@ const mainStatsMenu = new ActionRowBuilder()
                     description: 'Analyse par heure de la journée',
                     value: 'hourly_stats',
                     emoji: '🕒'
+                },
+                {
+                    label: 'Joueurs',
+                    description: 'Statistiques des joueurs individuels',
+                    value: 'players_stats',
+                    emoji: '👤'
                 }
             ])
     );
