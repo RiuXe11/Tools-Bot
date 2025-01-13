@@ -446,6 +446,71 @@ async function generateRecordsEmbed(interaction) {
         .setTimestamp();
 }
 
+const sortButtons = new ActionRowBuilder()
+    .addComponents(
+        new ButtonBuilder()
+            .setCustomId('sort_pseudo')
+            .setLabel('Trier par Pseudo')
+            .setStyle(ButtonStyle.Secondary)
+            .setEmoji('🔤'),
+        new ButtonBuilder()
+            .setCustomId('sort_time')
+            .setLabel('Trier par Temps de jeu')
+            .setStyle(ButtonStyle.Secondary)
+            .setEmoji('⏱️'),
+        new ButtonBuilder()
+            .setCustomId('sort_id')
+            .setLabel('Trier par ID')
+            .setStyle(ButtonStyle.Secondary)
+            .setEmoji('🔢')
+    );
+
+async function generateSortedPlayerList(guildId, sortType) {
+    const allData = await loadData();
+    const guildData = allData[guildId] || {};
+    
+    let players = Object.entries(guildData).map(([id, data]) => ({
+        id,
+        name: data.name,
+        totalTime: data.totalTime
+    }));
+
+    switch(sortType) {
+        case 'pseudo':
+            players.sort((a, b) => a.name.localeCompare(b.name));
+            break;
+        case 'time':
+            players.sort((a, b) => b.totalTime - a.totalTime);
+            break;
+        case 'id':
+            players.sort((a, b) => parseInt(a.id) - parseInt(b.id));
+            break;
+    }
+
+    // Créer l'embed avec la liste triée
+    const embed = new EmbedBuilder()
+        .setColor('#0099ff')
+        .setTitle('Statistiques des Joueurs')
+        .setDescription(players.map(player => 
+            `ID: ${player.id} - ${player.name} (${Math.round(player.totalTime / 3600000)}h de jeu)`
+        ).join('\n'))
+        .setTimestamp();
+
+    return { embed, components: [sortButtons] };
+}
+
+async function handleSortButton(interaction) {
+    if (!interaction.isButton()) return;
+
+    const sortType = interaction.customId.replace('sort_', '');
+    const { embed, components } = await generateSortedPlayerList(interaction.guildId, sortType);
+    
+    await interaction.update({ 
+        embeds: [embed],
+        components
+    });
+}
+
 async function generateHourlyStatsEmbed(interaction) {
     const color = colorManager.getColor(interaction.guildId).slice(1);
     const statsPath = path.join(__dirname, '../../data/serverstats.json');

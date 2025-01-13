@@ -1,6 +1,6 @@
 <h1 align="center">
   <br>
-  <a href="https://github.com/RiuXe11"><img src="./docs/images/Logo1.png" height="300" alt="Discord.js v14 Bot"></a>
+  <a href="https://github.com/RiuXe11"><img src="./docs/images/Logo1.png" height="300" alt="AvestiaBot"></a>
   <br>
   AvestiaBot
   <br>

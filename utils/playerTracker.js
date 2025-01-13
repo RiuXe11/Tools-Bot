@@ -26,18 +26,29 @@ class PlayerTracker {
         await fs.writeFile(this.playersPath, JSON.stringify(data, null, 2));
     }
 
-    async generatePlayerListEmbed(guildId, searchTerm = '') {
+    async generatePlayerListEmbed(guildId, searchTerm = '', sortType = 'time') {
         const allData = await this.loadData();
         const guildData = allData[guildId] || {};
         
         let players = Object.entries(guildData)
-            .map(([id, data], index) => ({
-                listId: (index + 1).toString().padStart(2, '0'),
+            .map(([id, data]) => ({
                 id,
                 name: data.name,
                 totalTime: data.totalTime
-            }))
-            .sort((a, b) => b.totalTime - a.totalTime);
+            }));
+        
+        // Appliquer le tri
+        switch(sortType) {
+            case 'pseudo':
+                players.sort((a, b) => a.name.localeCompare(b.name));
+                break;
+            case 'time':
+                players.sort((a, b) => b.totalTime - a.totalTime);
+                break;
+            case 'id':
+                players.sort((a, b) => parseInt(a.id) - parseInt(b.id));
+                break;
+        }
     
         // Si un terme de recherche est fourni, filtrer les joueurs
         if (searchTerm) {
@@ -46,7 +57,12 @@ class PlayerTracker {
             );
         }
     
-        // Créer un embed avec la liste des joueurs
+        // Ajouter l'ID de liste après le tri et le filtrage
+        players = players.map((player, index) => ({
+            ...player,
+            listId: (index + 1).toString().padStart(2, '0')
+        }));
+    
         const embed = new EmbedBuilder()
             .setColor('#0099ff')
             .setTitle('Statistiques des Joueurs')
@@ -70,8 +86,8 @@ class PlayerTracker {
             );
         }
     
-        // Créer les boutons d'action
-        const row = new ActionRowBuilder()
+        // Créer les boutons d'action avec les boutons de tri
+        const actionButtons = new ActionRowBuilder()
             .addComponents(
                 new ButtonBuilder()
                     .setCustomId('search_player')
@@ -82,9 +98,28 @@ class PlayerTracker {
                     .setLabel('Voir les statistiques')
                     .setStyle(ButtonStyle.Primary)
             );
-
+    
+        const sortButtons = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId('sort_pseudo')
+                    .setLabel('Trier par Pseudo')
+                    .setStyle(ButtonStyle.Secondary)
+                    .setEmoji('🔤'),
+                new ButtonBuilder()
+                    .setCustomId('sort_time')
+                    .setLabel('Trier par Temps de jeu')
+                    .setStyle(ButtonStyle.Secondary)
+                    .setEmoji('⏱️'),
+                new ButtonBuilder()
+                    .setCustomId('sort_id')
+                    .setLabel('Trier par ID')
+                    .setStyle(ButtonStyle.Secondary)
+                    .setEmoji('🔢')
+            );
+    
         if (searchTerm) {
-            row.addComponents(
+            actionButtons.addComponents(
                 new ButtonBuilder()
                     .setCustomId('cancel_search')
                     .setLabel('❌ Annuler la recherche')
@@ -92,7 +127,7 @@ class PlayerTracker {
             );
         }
     
-        return { embed, components: [row] };
+        return { embed, components: [actionButtons, sortButtons] };
     }
 
     // Mettre à jour les données des joueurs à partir de l'API FiveM

@@ -127,6 +127,25 @@ class InteractionHandler {
         if (interaction.customId === 'cancel_search') {
             return this.handlePlayerStatsMenu(interaction);
         }
+
+        if (interaction.customId.startsWith('sort_')) {
+            const sortType = interaction.customId.replace('sort_', '');
+            const searchTerm = interaction.message.embeds[0].description.includes('Résultats pour')
+                ? interaction.message.embeds[0].description.match(/Résultats pour "(.*?)"/)[1]
+                : '';
+            
+            const { embed, components } = await playerTracker.generatePlayerListEmbed(
+                interaction.guildId,
+                searchTerm,
+                sortType
+            );
+            
+            await interaction.update({ 
+                embeds: [embed],
+                components 
+            });
+            return;
+        }
     }
 
     static async handleSelectMenu(interaction) {
