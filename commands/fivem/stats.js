@@ -48,6 +48,24 @@ const mainStatsMenu = new ActionRowBuilder()
                     description: 'Statistiques des joueurs individuels',
                     value: 'players_stats',
                     emoji: '👤'
+                },
+                {
+                    label: 'Classements',
+                    description: 'Top joueurs et meilleures performances',
+                    value: 'rankings',
+                    emoji: '📈'
+                },
+                {
+                    label: 'Stats Hebdomadaires',
+                    description: 'Analyse de l\'activité de la semaine',
+                    value: 'weekly_stats',
+                    emoji: '📅'
+                },
+                {
+                    label: 'Vue Temps Réel',
+                    description: 'Statistiques en direct du serveur',
+                    value: 'realtime_stats',
+                    emoji: '⚡'
                 }
             ])
     );
@@ -196,6 +214,145 @@ async function generateFivemStatsEmbed(interaction, period, periodLabel) {
         .setImage(chartUrl)
         .setTimestamp()
         .setFooter({ text: 'Statistiques mises à jour toutes les heures' });
+}
+
+async function generateTopPlayersEmbed(interaction) {
+    const allData = await playerTracker.loadData();
+    const guildData = allData[interaction.guildId] || {};
+    
+    // Calculer les différents classements
+    const players = Object.entries(guildData).map(([_, data]) => ({
+        name: data.name,
+        totalTime: data.totalTime,
+        sessions: data.sessions
+    }));
+
+    // Top temps de jeu
+    const topPlaytime = players
+        .sort((a, b) => b.totalTime - a.totalTime)
+        .slice(0, 5)
+        .map((p, i) => `${i + 1}. **${p.name}** (\`${Math.round(p.totalTime / 3600000)}h\`)`);
+
+    // Top sessions
+    const topSessions = players
+        .sort((a, b) => b.sessions.length - a.sessions.length)
+        .slice(0, 5)
+        .map((p, i) => `${i + 1}. **${p.name}** (\`${p.sessions.length} sessions\`)`);
+
+    // Plus longues sessions
+    const longestSessions = players
+        .map(p => {
+            const longestSession = Math.max(...p.sessions.map(s => 
+                (s.end || Date.now()) - s.start
+            ));
+            return { name: p.name, duration: longestSession };
+        })
+        .sort((a, b) => b.duration - a.duration)
+        .slice(0, 5)
+        .map((p, i) => `${i + 1}. **${p.name}** (\`${Math.round(p.duration / 3600000)}h\`)`);
+
+    return new EmbedBuilder()
+        .setColor(colorManager.getColor(interaction.guildId))
+        .setTitle('🏆 Top Joueurs')
+        .addFields(
+            {
+                name: '⏱️ Top temps de jeu',
+                value: topPlaytime.join('\n'),
+                inline: false
+            },
+            {
+                name: '📈 Top nombre de sessions',
+                value: topSessions.join('\n'),
+                inline: false
+            },
+            {
+                name: '⚡ Plus longues sessions',
+                value: longestSessions.join('\n'),
+                inline: false
+            }
+        )
+        .setTimestamp();
+}
+
+async function generateActiveSessionsEmbed(interaction) {
+    const currentInfo = fivemCache.getCachedData(interaction.guildId);
+    const activeCache = playerTracker.activePlayersCache.get(interaction.guildId) || new Map();
+    
+    // Calculer les durées des sessions en cours
+    const activeSessions = Array.from(activeCache.entries()).map(([_, session]) => ({
+        name: session.name,
+        duration: Date.now() - session.startTime
+    }))
+    .sort((a, b) => b.duration - a.duration);
+
+    const sessionsList = activeSessions.map(session => {
+        const hours = Math.floor(session.duration / 3600000);
+        const minutes = Math.floor((session.duration % 3600000) / 60000);
+        return `**${session.name}** - \`${hours}h${minutes}min\``;
+    });
+
+    return new EmbedBuilder()
+        .setColor(colorManager.getColor(interaction.guildId))
+        .setTitle('⚡ Sessions en cours')
+        .setDescription(sessionsList.length > 0 ? sessionsList.join('\n') : 'Aucun joueur connecté')
+        .addFields(
+            {
+                name: 'Joueurs connectés',
+                value: `${currentInfo.players}/${currentInfo.maxPlayers}`,
+                inline: true
+            },
+            {
+                name: 'Durée moyenne',
+                value: `${Math.round(activeSessions.reduce((sum, s) => sum + s.duration, 0) / (activeSessions.length * 3600000))}h`,
+                inline: true
+            }
+        )
+        .setTimestamp();
+}
+
+async function generateComparisonsEmbed(interaction) {
+    const allData = await playerTracker.loadData();
+    const guildData = allData[interaction.guildId] || {};
+    
+    // Comparaison entre les périodes
+    const now = Date.now();
+    const yesterday = now - 24 * 60 * 60 * 1000;
+    const lastWeek = now - 7 * 24 * 60 * 60 * 1000;
+
+    const dailySessions = Object.values(guildData)
+        .flatMap(p => p.sessions.filter(s => s.start > yesterday))
+        .length;
+
+    const weeklySessions = Object.values(guildData)
+        .flatMap(p => p.sessions.filter(s => s.start > lastWeek))
+        .length;
+
+    const avgSessionTime = Object.values(guildData)
+        .flatMap(p => p.sessions)
+        .map(s => (s.end || now) - s.start)
+        .reduce((sum, duration) => sum + duration, 0) / Object.values(guildData).length;
+
+    return new EmbedBuilder()
+        .setColor(colorManager.getColor(interaction.guildId))
+        .setTitle('📊 Comparaisons et Tendances')
+        .addFields(
+            {
+                name: '24 dernières heures',
+                value: `${dailySessions} sessions`,
+                inline: true
+            },
+            {
+                name: '7 derniers jours',
+                value: `${weeklySessions} sessions`,
+                inline: true
+            },
+            {
+                name: 'Temps moyen par session',
+                value: `${Math.round(avgSessionTime / 3600000)}h`,
+                inline: true
+            }
+        )
+        .setTimestamp();
 }
 
 function getPeakHours(data) {
@@ -561,6 +718,9 @@ module.exports = {
     generateServerPerfEmbed,
     generateRecordsEmbed,
     generateHourlyStatsEmbed,
+    generateTopPlayersEmbed,
+    generateActiveSessionsEmbed,
+    generateComparisonsEmbed,
     async execute(message) {
         const serverAddress = await getServerAddress(message.guildId);
         if (!serverAddress) {
@@ -577,7 +737,5 @@ module.exports = {
             embeds: [embed], 
             components: [mainStatsMenu]
         });
-    },
-    generateFivemStatsEmbed,
-    fivemTimeButtons
+    }
 };

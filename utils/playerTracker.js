@@ -30,23 +30,25 @@ class PlayerTracker {
         const allData = await this.loadData();
         const guildData = allData[guildId] || {};
         
-        // Créer un Map pour dédupliquer les joueurs par nom
+        // Rassembler tous les joueurs avec leurs données
+        let players = Object.entries(guildData).map(([_, data]) => ({
+            name: data.name.trim(),
+            sessions: data.sessions,
+            totalTime: data.totalTime
+        }));
+    
+        // Dédupliquer les joueurs en gardant celui avec le plus de temps
         const uniquePlayers = new Map();
-        Object.entries(guildData).forEach(([id, data]) => {
-            const normalizedName = data.name.trim().toLowerCase();
+        players.forEach(player => {
+            const normalizedName = player.name.toLowerCase();
             if (!uniquePlayers.has(normalizedName) || 
-                data.totalTime > uniquePlayers.get(normalizedName).totalTime) {
-                uniquePlayers.set(normalizedName, {
-                    id,
-                    name: data.name,
-                    totalTime: data.totalTime
-                });
+                player.totalTime > uniquePlayers.get(normalizedName).totalTime) {
+                uniquePlayers.set(normalizedName, player);
             }
         });
-        
-        // Convertir le Map en array et appliquer le tri
-        let players = Array.from(uniquePlayers.values());
-        
+    
+        // Convertir en tableau et appliquer le tri
+        players = Array.from(uniquePlayers.values());
         switch(sortType) {
             case 'pseudo':
                 players.sort((a, b) => a.name.localeCompare(b.name));
@@ -55,11 +57,12 @@ class PlayerTracker {
                 players.sort((a, b) => b.totalTime - a.totalTime);
                 break;
             case 'id':
-                players.sort((a, b) => parseInt(a.id) - parseInt(b.id));
+                // Pour l'ID, on garde l'ordre du temps de jeu par défaut
+                players.sort((a, b) => b.totalTime - a.totalTime);
                 break;
         }
     
-        // Filtrer par recherche si nécessaire
+        // Filtrer si recherche
         if (searchTerm) {
             players = players.filter(player => 
                 player.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -67,13 +70,13 @@ class PlayerTracker {
         }
     
         // Pagination
-        const itemsPerPage = 50;
+        const itemsPerPage = 25;
         const totalPages = Math.ceil(players.length / itemsPerPage);
         const paginatedPlayers = players.slice(page * itemsPerPage, (page + 1) * itemsPerPage);
     
-        // Ajouter les IDs de liste après pagination
+        // Ajouter les IDs dynamiques après le tri et la pagination
         paginatedPlayers.forEach((player, index) => {
-            player.listId = ((page * itemsPerPage) + index + 1).toString().padStart(2, '0');
+            player.displayId = (page * itemsPerPage + index + 1).toString().padStart(2, '0');
         });
     
         const embed = new EmbedBuilder()
@@ -89,14 +92,14 @@ class PlayerTracker {
             );
         } else {
             const playerList = paginatedPlayers
-                .map(player => `\`${player.listId}\` - **${player.name}** (\`${Math.round(player.totalTime / 3600000)}h\` de jeu)`)
+                .map(player => `${player.displayId} - **${player.name}** (\`${Math.round(player.totalTime / 3600000)}h\` de jeu)`)
                 .join('\n');
     
-            embed.setDescription(
-                searchTerm 
-                    ? `🔍 Résultats pour "${searchTerm}":\n\n${playerList}\n\nPour voir les statistiques d'un joueur, utilisez son ID avec le bouton ci-dessous.`
-                    : `Liste des joueurs:\n\n${playerList}\n\nPour voir les statistiques d'un joueur, utilisez son ID avec le bouton ci-dessous.`
-            );
+            const description = searchTerm 
+                ? `🔍 Résultats pour "${searchTerm}":\n\n${playerList}`
+                : `Liste des joueurs:\n\n${playerList}`;
+    
+            embed.setDescription(description + "\n\nPour voir les statistiques d'un joueur, utilisez son ID avec le bouton ci-dessous.");
         }
     
         // Boutons d'action
@@ -112,43 +115,42 @@ class PlayerTracker {
                     .setStyle(ButtonStyle.Primary)
             );
     
-        // Boutons de tri
+        // Boutons de tri - Mettre en surbrillance le tri actif
         const sortButtons = new ActionRowBuilder()
             .addComponents(
                 new ButtonBuilder()
                     .setCustomId('sort_pseudo')
                     .setLabel('Trier par Pseudo')
-                    .setStyle(ButtonStyle.Secondary)
+                    .setStyle(sortType === 'pseudo' ? ButtonStyle.Primary : ButtonStyle.Secondary)
                     .setEmoji('🔤'),
                 new ButtonBuilder()
                     .setCustomId('sort_time')
                     .setLabel('Trier par Temps de jeu')
-                    .setStyle(ButtonStyle.Secondary)
+                    .setStyle(sortType === 'time' ? ButtonStyle.Primary : ButtonStyle.Secondary)
                     .setEmoji('⏱️'),
                 new ButtonBuilder()
                     .setCustomId('sort_id')
                     .setLabel('Trier par ID')
-                    .setStyle(ButtonStyle.Secondary)
+                    .setStyle(sortType === 'id' ? ButtonStyle.Primary : ButtonStyle.Secondary)
                     .setEmoji('🔢')
             );
     
-        // Boutons de pagination
-        const paginationButtons = new ActionRowBuilder()
-            .addComponents(
-                new ButtonBuilder()
-                    .setCustomId('prev_page_players')
-                    .setLabel('◀️ Page précédente')
-                    .setStyle(ButtonStyle.Primary)
-                    .setDisabled(page === 0),
-                new ButtonBuilder()
-                    .setCustomId('next_page_players')
-                    .setLabel('Page suivante ▶️')
-                    .setStyle(ButtonStyle.Primary)
-                    .setDisabled(page >= totalPages - 1)
-            );
-    
+        // Boutons de pagination si nécessaire
         const components = [actionButtons, sortButtons];
         if (totalPages > 1) {
+            const paginationButtons = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('prev_page_players')
+                        .setLabel('◀️ Page précédente')
+                        .setStyle(ButtonStyle.Primary)
+                        .setDisabled(page === 0),
+                    new ButtonBuilder()
+                        .setCustomId('next_page_players')
+                        .setLabel('Page suivante ▶️')
+                        .setStyle(ButtonStyle.Primary)
+                        .setDisabled(page >= totalPages - 1)
+                );
             components.push(paginationButtons);
         }
     

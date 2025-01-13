@@ -175,6 +175,17 @@ class InteractionHandler {
 
     static async handleSelectMenu(interaction) {
         if (interaction.customId === 'stats_menu') {
+            const { 
+                generateFivemStatsEmbed, 
+                fivemTimeButtons,
+                generateServerPerfEmbed, 
+                generateRecordsEmbed, 
+                generateHourlyStatsEmbed,
+                generateTopPlayersEmbed,
+                generateActiveSessionsEmbed,
+                generateComparisonsEmbed
+            } = require('../commands/fivem/stats');
+    
             switch(interaction.values[0]) {
                 case 'fivem_players':
                     const playerEmbed = await generateFivemStatsEmbed(interaction, 24 * 60 * 60 * 1000, 'dernières 24h');
@@ -191,15 +202,22 @@ class InteractionHandler {
                 case 'hourly_stats':
                     const hourlyEmbed = await generateHourlyStatsEmbed(interaction);
                     return interaction.update({ embeds: [hourlyEmbed] });
+    
                 case 'players_stats':
                     return this.handlePlayerStatsMenu(interaction);
+    
+                case 'rankings':
+                    const rankingsEmbed = await generateTopPlayersEmbed(interaction);
+                    return interaction.update({ embeds: [rankingsEmbed] });
+    
+                case 'realtime_stats':
+                    const realtimeEmbed = await generateActiveSessionsEmbed(interaction);
+                    return interaction.update({ embeds: [realtimeEmbed] });
+    
+                case 'weekly_stats':
+                    const weeklyEmbed = await generateComparisonsEmbed(interaction);
+                    return interaction.update({ embeds: [weeklyEmbed] });
             }
-        } else if (interaction.customId === 'month_select') {
-            await this.handleMonthSelect(interaction);
-        } else if (interaction.customId === 'select_player') {
-            return this.handlePlayerSelection(interaction);
-        } else if (interaction.customId.startsWith('player_month_')) {
-            return this.handlePlayerMonth(interaction);
         }
     }
 
