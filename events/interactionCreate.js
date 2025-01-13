@@ -146,6 +146,31 @@ class InteractionHandler {
             });
             return;
         }
+
+        if (interaction.customId === 'prev_page_players' || interaction.customId === 'next_page_players') {
+            const currentPage = parseInt(interaction.message.embeds[0].footer.text.split('/')[0].split(' ')[1]) - 1;
+            const newPage = interaction.customId === 'prev_page_players' ? currentPage - 1 : currentPage + 1;
+            
+            // Récupérer le type de tri actuel
+            const sortType = interaction.message.components[1].components.find(b => 
+                b.style === ButtonStyle.Primary
+            )?.customId.replace('sort_', '') || 'time';
+        
+            // Récupérer le terme de recherche s'il existe
+            const searchTerm = interaction.message.embeds[0].description.includes('Résultats pour')
+                ? interaction.message.embeds[0].description.match(/Résultats pour "(.*?)"/)[1]
+                : '';
+        
+            const { embed, components } = await playerTracker.generatePlayerListEmbed(
+                interaction.guildId,
+                searchTerm,
+                sortType,
+                newPage
+            );
+        
+            await interaction.update({ embeds: [embed], components });
+            return;
+        }
     }
 
     static async handleSelectMenu(interaction) {

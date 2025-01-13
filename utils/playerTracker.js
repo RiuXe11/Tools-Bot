@@ -26,18 +26,27 @@ class PlayerTracker {
         await fs.writeFile(this.playersPath, JSON.stringify(data, null, 2));
     }
 
-    async generatePlayerListEmbed(guildId, searchTerm = '', sortType = 'time') {
+    async generatePlayerListEmbed(guildId, searchTerm = '', sortType = 'time', page = 0) {
         const allData = await this.loadData();
         const guildData = allData[guildId] || {};
         
-        let players = Object.entries(guildData)
-            .map(([id, data]) => ({
-                id,
-                name: data.name,
-                totalTime: data.totalTime
-            }));
+        // Créer un Map pour dédupliquer les joueurs par nom
+        const uniquePlayers = new Map();
+        Object.entries(guildData).forEach(([id, data]) => {
+            const normalizedName = data.name.trim().toLowerCase();
+            if (!uniquePlayers.has(normalizedName) || 
+                data.totalTime > uniquePlayers.get(normalizedName).totalTime) {
+                uniquePlayers.set(normalizedName, {
+                    id,
+                    name: data.name,
+                    totalTime: data.totalTime
+                });
+            }
+        });
         
-        // Appliquer le tri
+        // Convertir le Map en array et appliquer le tri
+        let players = Array.from(uniquePlayers.values());
+        
         switch(sortType) {
             case 'pseudo':
                 players.sort((a, b) => a.name.localeCompare(b.name));
@@ -50,32 +59,36 @@ class PlayerTracker {
                 break;
         }
     
-        // Si un terme de recherche est fourni, filtrer les joueurs
+        // Filtrer par recherche si nécessaire
         if (searchTerm) {
             players = players.filter(player => 
                 player.name.toLowerCase().includes(searchTerm.toLowerCase())
             );
         }
     
-        // Ajouter l'ID de liste après le tri et le filtrage
-        players = players.map((player, index) => ({
-            ...player,
-            listId: (index + 1).toString().padStart(2, '0')
-        }));
+        // Pagination
+        const itemsPerPage = 50;
+        const totalPages = Math.ceil(players.length / itemsPerPage);
+        const paginatedPlayers = players.slice(page * itemsPerPage, (page + 1) * itemsPerPage);
+    
+        // Ajouter les IDs de liste après pagination
+        paginatedPlayers.forEach((player, index) => {
+            player.listId = ((page * itemsPerPage) + index + 1).toString().padStart(2, '0');
+        });
     
         const embed = new EmbedBuilder()
             .setColor('#0099ff')
             .setTitle('Statistiques des Joueurs')
+            .setFooter({ text: `Page ${page + 1}/${Math.max(1, totalPages)}` })
             .setTimestamp();
     
         if (players.length === 0) {
-            if (searchTerm) {
-                embed.setDescription('❌ Aucun joueur trouvé avec ce pseudo.');
-            } else {
-                embed.setDescription('❌ Aucun joueur enregistré pour le moment.');
-            }
+            embed.setDescription(searchTerm 
+                ? '❌ Aucun joueur trouvé avec ce pseudo.'
+                : '❌ Aucun joueur enregistré pour le moment.'
+            );
         } else {
-            const playerList = players
+            const playerList = paginatedPlayers
                 .map(player => `\`${player.listId}\` - **${player.name}** (\`${Math.round(player.totalTime / 3600000)}h\` de jeu)`)
                 .join('\n');
     
@@ -86,7 +99,7 @@ class PlayerTracker {
             );
         }
     
-        // Créer les boutons d'action avec les boutons de tri
+        // Boutons d'action
         const actionButtons = new ActionRowBuilder()
             .addComponents(
                 new ButtonBuilder()
@@ -99,6 +112,7 @@ class PlayerTracker {
                     .setStyle(ButtonStyle.Primary)
             );
     
+        // Boutons de tri
         const sortButtons = new ActionRowBuilder()
             .addComponents(
                 new ButtonBuilder()
@@ -118,6 +132,26 @@ class PlayerTracker {
                     .setEmoji('🔢')
             );
     
+        // Boutons de pagination
+        const paginationButtons = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId('prev_page_players')
+                    .setLabel('◀️ Page précédente')
+                    .setStyle(ButtonStyle.Primary)
+                    .setDisabled(page === 0),
+                new ButtonBuilder()
+                    .setCustomId('next_page_players')
+                    .setLabel('Page suivante ▶️')
+                    .setStyle(ButtonStyle.Primary)
+                    .setDisabled(page >= totalPages - 1)
+            );
+    
+        const components = [actionButtons, sortButtons];
+        if (totalPages > 1) {
+            components.push(paginationButtons);
+        }
+    
         if (searchTerm) {
             actionButtons.addComponents(
                 new ButtonBuilder()
@@ -127,7 +161,7 @@ class PlayerTracker {
             );
         }
     
-        return { embed, components: [actionButtons, sortButtons] };
+        return { embed, components };
     }
 
     // Mettre à jour les données des joueurs à partir de l'API FiveM
