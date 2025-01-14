@@ -30,26 +30,24 @@ class PlayerTracker {
         const allData = await this.loadData();
         const guildData = allData[guildId] || {};
         
-        // Rassembler tous les joueurs avec leurs données et leur vrai ID
-        let players = Object.entries(guildData).map(([id, data]) => ({
-            id: id,  // Garder l'ID original
-            name: data.name.trim(),
-            sessions: data.sessions,
-            totalTime: data.totalTime
-        }));
-    
-        // Dédupliquer les joueurs en gardant celui avec le plus de temps
-        const uniquePlayers = new Map();
-        players.forEach(player => {
-            const normalizedName = player.name.toLowerCase();
-            if (!uniquePlayers.has(normalizedName) || 
-                player.totalTime > uniquePlayers.get(normalizedName).totalTime) {
-                uniquePlayers.set(normalizedName, player);
+        // Créer un Map pour garder le plus haut ID pour chaque nom
+        const bestIdByName = new Map();
+        Object.entries(guildData).forEach(([id, data]) => {
+            const normalizedName = data.name.trim().toLowerCase();
+            if (!bestIdByName.has(normalizedName) || 
+                guildData[bestIdByName.get(normalizedName)].totalTime < data.totalTime) {
+                bestIdByName.set(normalizedName, id);
             }
         });
     
-        // Convertir en tableau et appliquer le tri
-        players = Array.from(uniquePlayers.values());
+        // Créer la liste des joueurs uniques avec leur meilleur ID
+        let players = Array.from(bestIdByName.entries()).map(([normalizedName, id]) => ({
+            id: id,
+            name: guildData[id].name.trim(),
+            totalTime: guildData[id].totalTime
+        }));
+        
+        // Appliquer le tri
         switch(sortType) {
             case 'pseudo':
                 players.sort((a, b) => a.name.localeCompare(b.name));
@@ -87,7 +85,11 @@ class PlayerTracker {
             );
         } else {
             const playerList = paginatedPlayers
-                .map((player, index) => `ID: \`${player.id}\` - **${player.name}** (\`${Math.round(player.totalTime / 3600000)}h\` de jeu)`)
+                .map((player, index) => {
+                    const hours = Math.round(player.totalTime / 3600000);
+                    const timeStr = hours > 0 ? `${hours}h de jeu` : 'En ligne';
+                    return `ID: \`${player.id}\` - **${player.name}** (\`${timeStr}\`)`;
+                })
                 .join('\n');
     
             const description = searchTerm 
