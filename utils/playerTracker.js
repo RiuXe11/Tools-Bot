@@ -30,8 +30,9 @@ class PlayerTracker {
         const allData = await this.loadData();
         const guildData = allData[guildId] || {};
         
-        // Rassembler tous les joueurs avec leurs données
-        let players = Object.entries(guildData).map(([_, data]) => ({
+        // Rassembler tous les joueurs avec leurs données et leur vrai ID
+        let players = Object.entries(guildData).map(([id, data]) => ({
+            id: id,  // Garder l'ID original
             name: data.name.trim(),
             sessions: data.sessions,
             totalTime: data.totalTime
@@ -57,8 +58,7 @@ class PlayerTracker {
                 players.sort((a, b) => b.totalTime - a.totalTime);
                 break;
             case 'id':
-                // Pour l'ID, on garde l'ordre du temps de jeu par défaut
-                players.sort((a, b) => b.totalTime - a.totalTime);
+                players.sort((a, b) => parseInt(a.id) - parseInt(b.id));
                 break;
         }
     
@@ -74,11 +74,6 @@ class PlayerTracker {
         const totalPages = Math.ceil(players.length / itemsPerPage);
         const paginatedPlayers = players.slice(page * itemsPerPage, (page + 1) * itemsPerPage);
     
-        // Ajouter les IDs dynamiques après le tri et la pagination
-        paginatedPlayers.forEach((player, index) => {
-            player.displayId = (page * itemsPerPage + index + 1).toString().padStart(2, '0');
-        });
-    
         const embed = new EmbedBuilder()
             .setColor('#0099ff')
             .setTitle('Statistiques des Joueurs')
@@ -92,7 +87,7 @@ class PlayerTracker {
             );
         } else {
             const playerList = paginatedPlayers
-                .map(player => `${player.displayId} - **${player.name}** (\`${Math.round(player.totalTime / 3600000)}h\` de jeu)`)
+                .map((player, index) => `ID: \`${player.id}\` - **${player.name}** (\`${Math.round(player.totalTime / 3600000)}h\` de jeu)`)
                 .join('\n');
     
             const description = searchTerm 
