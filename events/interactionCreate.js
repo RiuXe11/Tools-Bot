@@ -245,35 +245,27 @@ class InteractionHandler {
         if (interaction.customId === 'select_player_modal') {
             const listId = interaction.fields.getTextInputValue('player_list_id');
             
-            // Charger la liste des joueurs pour vérifier l'ID
+            // Charger directement les données
             const allData = await playerTracker.loadData();
             const guildData = allData[interaction.guildId] || {};
-            const players = Object.entries(guildData)
-                .map(([id, data], index) => ({
-                    listId: (index + 1).toString().padStart(2, '0'),
-                    id,
-                    data
-                }))
-                .sort((a, b) => b.data.totalTime - a.data.totalTime);
-
-            const player = players.find(p => p.listId === listId);
             
-            if (!player) {
+            // Vérifier si l'ID existe directement dans guildData
+            if (!guildData[listId]) {
                 const { embed, components } = await playerTracker.generatePlayerListEmbed(interaction.guildId);
                 embed.setDescription(embed.data.description + '\n\n❌ ID invalide. Veuillez réessayer.');
                 await interaction.update({ embeds: [embed], components });
                 return;
             }
-
+        
             // Afficher les statistiques du joueur
             const viewButtons = new ActionRowBuilder()
                 .addComponents(
                     new ButtonBuilder()
-                        .setCustomId(`player_stats_${player.id}`)
+                        .setCustomId(`player_stats_${listId}`)
                         .setLabel('Statistiques générales')
                         .setStyle(ButtonStyle.Primary),
                     new ButtonBuilder()
-                        .setCustomId(`player_calendar_${player.id}`)
+                        .setCustomId(`player_calendar_${listId}`)
                         .setLabel('Calendrier d\'activité')
                         .setStyle(ButtonStyle.Secondary),
                     new ButtonBuilder()
@@ -281,12 +273,13 @@ class InteractionHandler {
                         .setLabel('Retour à la liste')
                         .setStyle(ButtonStyle.Secondary)
                 );
-
-            const statsEmbed = await playerTracker.generatePlayerStatsEmbed(interaction.guildId, player.id);
+        
+            const statsEmbed = await playerTracker.generatePlayerStatsEmbed(interaction.guildId, listId);
             await interaction.update({
                 embeds: [statsEmbed],
                 components: [viewButtons]
             });
+            return;
         }
     }
 
