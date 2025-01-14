@@ -68,7 +68,7 @@ class PlayerTracker {
         }
     
         // Pagination
-        const itemsPerPage = 25;
+        const itemsPerPage = 35;
         const totalPages = Math.ceil(players.length / itemsPerPage);
         const paginatedPlayers = players.slice(page * itemsPerPage, (page + 1) * itemsPerPage);
     

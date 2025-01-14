@@ -651,7 +651,9 @@ async function generateSortedPlayerList(guildId, sortType) {
         .setDescription(players.map(player => 
             `ID: ${player.id} - ${player.name} (${Math.round(player.totalTime / 3600000)}h de jeu)`
         ).join('\n'))
+        .setFooter("L'ENREGISTREMENT À COMMENCER LE 13/01/2025 AU ENVIRON DE 22h !")
         .setTimestamp();
+        
 
     return { embed, components: [sortButtons] };
 }
