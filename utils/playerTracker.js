@@ -96,7 +96,7 @@ class PlayerTracker {
                 ? `🔍 Résultats pour "${searchTerm}":\n\n${playerList}`
                 : `Liste des joueurs:\n\n${playerList}`;
     
-            embed.setDescription(description + "\n\nPour voir les statistiques d'un joueur, utilisez son ID avec le bouton ci-dessous.");
+            embed.setDescription(description + "\n\nPour voir les statistiques d'un joueur, utilisez son ID avec le bouton ci-dessous.\n⚠️ - **L'ENREGISTREMENT À COMMENCER LE 13/01/2025 AU ENVIRON DE 22h !**");
         }
     
         // Boutons d'action
