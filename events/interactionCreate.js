@@ -54,32 +54,42 @@ class InteractionHandler {
                 return this.handleDatePicker(interaction);
         }
 
-        if (interaction.customId.startsWith('player_')) {
-            const [_, type, playerId] = interaction.customId.split('_');
+        if (interaction.customId.startsWith('player_calendar_')) {
+            const playerId = interaction.customId.split('player_calendar_')[1];
             
-            if (type === 'stats') {
-                const statsEmbed = await playerTracker.generatePlayerStatsEmbed(interaction.guildId, playerId);
-                
-                // Créer les boutons de navigation
-                const viewButtons = new ActionRowBuilder()
-                    .addComponents(
-                        new ButtonBuilder()
-                            .setCustomId(`player_calendar_${playerId}`)
-                            .setLabel('Calendrier d\'activité')
-                            .setStyle(ButtonStyle.Secondary),
-                        new ButtonBuilder()
-                            .setCustomId('players_stats')
-                            .setLabel('Retour à la liste')
-                            .setStyle(ButtonStyle.Secondary)
-                    );
-    
-                return interaction.update({ 
-                    embeds: [statsEmbed],
-                    components: [viewButtons]
-                });
-            } else if (type === 'calendar') {
-                return this.handlePlayerCalendar(interaction, playerId);
-            }
+            // Créer le menu de sélection du mois
+            const now = new Date();
+            const monthsMenu = new ActionRowBuilder()
+                .addComponents(
+                    new StringSelectMenuBuilder()
+                        .setCustomId(`month_select_${playerId}`)
+                        .setPlaceholder('Sélectionner un mois')
+                        .addOptions(
+                            Array.from({ length: 6 }, (_, i) => {
+                                const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                                const month = String(date.getMonth() + 1).padStart(2, '0');
+                                const year = date.getFullYear();
+                                return {
+                                    label: `${month}/${year}`,
+                                    value: `${year}-${month}`,
+                                    emoji: '📅'
+                                };
+                            })
+                        )
+                );
+        
+            const returnButton = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(`player_stats_${playerId}`)
+                        .setLabel('Retour aux statistiques')
+                        .setStyle(ButtonStyle.Secondary)
+                );
+        
+            await interaction.update({
+                components: [monthsMenu, returnButton]
+            });
+            return;
         }
 
         if (interaction.customId === 'players_stats') {
@@ -363,6 +373,31 @@ class InteractionHandler {
                     const weeklyEmbed = await generateComparisonsEmbed(interaction);
                     return interaction.update({ embeds: [weeklyEmbed] });
             }
+        }
+
+        if (interaction.customId.startsWith('month_select_')) {
+            const playerId = interaction.customId.replace('month_select_', '');
+            const selectedMonth = interaction.values[0];
+            
+            const calendarEmbed = await playerTracker.generatePlayerCalendarEmbed(
+                interaction.guildId,
+                playerId,
+                selectedMonth
+            );
+    
+            const backButton = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(`player_stats_${playerId}`)
+                        .setLabel('Retour aux statistiques')
+                        .setStyle(ButtonStyle.Secondary)
+                );
+    
+            await interaction.update({
+                embeds: [calendarEmbed],
+                components: [backButton]
+            });
+            return;
         }
     }
 
