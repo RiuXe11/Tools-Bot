@@ -468,7 +468,15 @@ class PlayerTracker {
     
         if (duplicates.length === 0) {
             embed.setDescription('✅ Aucun doublon trouvé.');
-            return { embed, components: [] };
+            const returnButton = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('players_stats')
+                        .setLabel('Retour')
+                        .setStyle(ButtonStyle.Secondary)
+                        .setEmoji('↩️')
+                );
+            return { embed, components: [returnButton] };
         }
     
         const description = duplicates.map(dup => {
@@ -478,7 +486,7 @@ class PlayerTracker {
             return `**${dup.name}**\n${entriesText}`;
         }).join('\n\n');
     
-        embed.setDescription(description + "\n\nUtilisez le bouton 'Fusionner' pour combiner des doublons ou 'Nettoyer' pour fusionner automatiquement tous les doublons.");
+        embed.setDescription(description + "\n\nUtilisez le bouton 'Fusionner' pour combiner des doublons ou 'Tout fusionner automatiquement' pour fusionner tous les doublons.");
 
         const duplicateManagementButtons = new ActionRowBuilder()
             .addComponents(
@@ -499,24 +507,9 @@ class PlayerTracker {
                     .setEmoji('↩️')
             );
 
-        const confirmCleanupButtons = new ActionRowBuilder()
-            .addComponents(
-                new ButtonBuilder()
-                    .setCustomId('confirm_cleanup')
-                    .setLabel('Confirmer')
-                    .setStyle(ButtonStyle.Danger)
-                    .setEmoji('✅'),
-                new ButtonBuilder()
-                    .setCustomId('cancel_cleanup')
-                    .setLabel('Annuler')
-                    .setStyle(ButtonStyle.Secondary)
-                    .setEmoji('❌')
-            );
-
         return { 
             embed,
             components: [duplicateManagementButtons]
-            // Note: confirmCleanupButtons sera utilisé séparément lors de la confirmation
         };
     }
     
