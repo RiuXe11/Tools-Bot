@@ -1,6 +1,6 @@
 const fs = require('fs').promises;
 const path = require('path');
-const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle} = require('discord.js');
 
 class PlayerTracker {
     constructor() {
@@ -468,7 +468,7 @@ class PlayerTracker {
     
         if (duplicates.length === 0) {
             embed.setDescription('✅ Aucun doublon trouvé.');
-            return embed;
+            return { embed, components: [] };
         }
     
         const description = duplicates.map(dup => {
@@ -484,14 +484,14 @@ class PlayerTracker {
             .addComponents(
                 new ButtonBuilder()
                     .setCustomId('merge_players')
-                    .setLabel('Fusionner')
+                    .setLabel('Fusionner un doublon')
                     .setStyle(ButtonStyle.Primary)
                     .setEmoji('🔄'),
                 new ButtonBuilder()
-                    .setCustomId('cleanup_duplicates')
-                    .setLabel('Nettoyer')
-                    .setStyle(ButtonStyle.Danger)
-                    .setEmoji('🧹'),
+                    .setCustomId('merge_all_duplicates')
+                    .setLabel('Tout fusionner automatiquement')
+                    .setStyle(ButtonStyle.Primary)
+                    .setEmoji('♻️'),
                 new ButtonBuilder()
                     .setCustomId('players_stats')
                     .setLabel('Retour')

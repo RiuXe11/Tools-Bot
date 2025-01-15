@@ -54,18 +54,6 @@ class InteractionHandler {
                 return this.handleDatePicker(interaction);
         }
 
-        if (interaction.customId === 'check_duplicates') {
-            // Récupérer l'embed et les boutons des doublons
-            const { embed, components } = await playerTracker.generateDuplicatesEmbed(interaction.guildId);
-            
-            // Répondre avec l'embed et les boutons
-            await interaction.update({
-                embeds: [embed],
-                components
-            });
-            return;
-        }
-
         if (interaction.customId.startsWith('player_')) {
             const [_, type, playerId] = interaction.customId.split('_');
             
@@ -181,6 +169,100 @@ class InteractionHandler {
             );
         
             await interaction.update({ embeds: [embed], components });
+            return;
+        }
+
+        if (interaction.customId === 'check_duplicates') {
+            const { embed, components } = await playerTracker.generateDuplicatesEmbed(interaction.guildId);
+            await interaction.update({
+                embeds: [embed],
+                components
+            });
+            return;
+        }
+
+        if (interaction.customId === 'merge_all_duplicates') {
+            // Demander confirmation avant fusion automatique
+            const confirmEmbed = new EmbedBuilder()
+                .setColor('#ff9900')
+                .setTitle('⚠️ Confirmation de fusion automatique')
+                .setDescription('Êtes-vous sûr de vouloir fusionner automatiquement tous les doublons ?\n\n' +
+                    'Pour chaque groupe de doublons, le compte avec le plus de temps de jeu sera conservé, et les autres seront fusionnés avec celui-ci.\n\n' +
+                    '**Cette action est irréversible !**')
+                .setTimestamp();
+
+            const confirmButtons = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('confirm_merge_all')
+                        .setLabel('Confirmer')
+                        .setStyle(ButtonStyle.Danger)
+                        .setEmoji('✅'),
+                    new ButtonBuilder()
+                        .setCustomId('check_duplicates')
+                        .setLabel('Annuler')
+                        .setStyle(ButtonStyle.Secondary)
+                        .setEmoji('❌')
+                );
+
+            await interaction.update({
+                embeds: [confirmEmbed],
+                components: [confirmButtons]
+            });
+            return;
+        }
+
+        if (interaction.customId === 'confirm_merge_all') {
+            try {
+                // Effectuer les fusions
+                const mergeResults = await playerTracker.cleanupDuplicates(interaction.guildId);
+                
+                // Créer un résumé des fusions effectuées
+                let description = 'Résumé des fusions effectuées :\n\n';
+                if (mergeResults.length === 0) {
+                    description = '✅ Aucun doublon à fusionner.';
+                } else {
+                    for (const result of mergeResults) {
+                        description += `**${result.name}** :\n`;
+                        for (const merge of result.merges) {
+                            description += `→ ID ${merge.source} fusionné avec ID ${merge.target}\n`;
+                        }
+                        description += '\n';
+                    }
+                }
+
+                const summaryEmbed = new EmbedBuilder()
+                    .setColor('#00ff00')
+                    .setTitle('Fusion automatique terminée')
+                    .setDescription(description)
+                    .setTimestamp();
+
+                const returnButton = new ActionRowBuilder()
+                    .addComponents(
+                        new ButtonBuilder()
+                            .setCustomId('check_duplicates')
+                            .setLabel('Retour aux doublons')
+                            .setStyle(ButtonStyle.Secondary)
+                            .setEmoji('↩️')
+                    );
+
+                await interaction.update({
+                    embeds: [summaryEmbed],
+                    components: [returnButton]
+                });
+            } catch (error) {
+                console.error('Erreur lors de la fusion automatique:', error);
+                const errorEmbed = new EmbedBuilder()
+                    .setColor('#ff0000')
+                    .setTitle('❌ Erreur')
+                    .setDescription('Une erreur est survenue lors de la fusion automatique.')
+                    .setTimestamp();
+
+                await interaction.update({
+                    embeds: [errorEmbed],
+                    components: []
+                });
+            }
             return;
         }
 
