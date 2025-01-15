@@ -539,19 +539,37 @@ class PlayerTracker {
         const duplicates = await this.findDuplicates(guildId);
         const allData = await this.loadData();
         const guildData = allData[guildId] || {};
-    
+        const mergeResults = [];
+        
         for (const dup of duplicates) {
             // Trouver l'entrée avec le plus de temps de jeu
             const sortedEntries = [...dup.entries].sort((a, b) => b.totalTime - a.totalTime);
             const targetId = sortedEntries[0].id;
-    
+            
+            const mergesForThisName = [];
             // Fusionner tous les autres avec celle-ci
             for (let i = 1; i < sortedEntries.length; i++) {
-                await this.mergePlayers(guildId, sortedEntries[i].id, targetId);
+                try {
+                    await this.mergePlayers(guildId, sortedEntries[i].id, targetId);
+                    mergesForThisName.push({
+                        source: sortedEntries[i].id,
+                        target: targetId
+                    });
+                } catch (error) {
+                    console.error(`Erreur lors de la fusion de ${sortedEntries[i].id} vers ${targetId}:`, error);
+                }
+            }
+            
+            if (mergesForThisName.length > 0) {
+                mergeResults.push({
+                    name: dup.name,
+                    merges: mergesForThisName,
+                    keptId: targetId
+                });
             }
         }
-    
-        return duplicates.length;
+        
+        return mergeResults;
     }
     
     async generateMergeModal(playerId1, playerId2) {

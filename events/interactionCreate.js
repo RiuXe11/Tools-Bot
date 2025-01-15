@@ -433,15 +433,42 @@ class InteractionHandler {
         
             try {
                 await playerTracker.mergePlayers(interaction.guildId, sourceId, targetId);
-                const updatedEmbed = await playerTracker.generateDuplicatesEmbed(interaction.guildId);
+                const resultEmbed = new EmbedBuilder()
+                    .setColor('#00FF00')
+                    .setTitle('✅ Fusion réussie')
+                    .setDescription(`Les données de l'ID ${sourceId} ont été fusionnées avec l'ID ${targetId}.\n\nUtilisez le bouton ci-dessous pour voir la liste des doublons restants.`)
+                    .setTimestamp();
+                
+                const returnButton = new ActionRowBuilder()
+                    .addComponents(
+                        new ButtonBuilder()
+                            .setCustomId('check_duplicates')
+                            .setLabel('Voir les doublons restants')
+                            .setStyle(ButtonStyle.Primary)
+                    );
+        
                 await interaction.update({ 
-                    embeds: [updatedEmbed], 
-                    components: [playerTracker.duplicateManagementButtons] 
+                    embeds: [resultEmbed], 
+                    components: [returnButton]
                 });
             } catch (error) {
-                await interaction.reply({ 
-                    content: `❌ Erreur lors de la fusion : ${error.message}`, 
-                    ephemeral: true 
+                const errorEmbed = new EmbedBuilder()
+                    .setColor('#FF0000')
+                    .setTitle('❌ Erreur')
+                    .setDescription(`Erreur lors de la fusion : ${error.message}\n\nVérifiez que les IDs sont corrects et réessayez.`)
+                    .setTimestamp();
+        
+                const returnButton = new ActionRowBuilder()
+                    .addComponents(
+                        new ButtonBuilder()
+                            .setCustomId('check_duplicates')
+                            .setLabel('Retour aux doublons')
+                            .setStyle(ButtonStyle.Secondary)
+                    );
+        
+                await interaction.update({ 
+                    embeds: [errorEmbed],
+                    components: [returnButton]
                 });
             }
         }
