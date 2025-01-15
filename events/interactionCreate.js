@@ -54,6 +54,18 @@ class InteractionHandler {
                 return this.handleDatePicker(interaction);
         }
 
+        if (interaction.customId === 'check_duplicates') {
+            // Récupérer l'embed et les boutons des doublons
+            const { embed, components } = await playerTracker.generateDuplicatesEmbed(interaction.guildId);
+            
+            // Répondre avec l'embed et les boutons
+            await interaction.update({
+                embeds: [embed],
+                components
+            });
+            return;
+        }
+
         if (interaction.customId.startsWith('player_')) {
             const [_, type, playerId] = interaction.customId.split('_');
             
@@ -183,18 +195,6 @@ class InteractionHandler {
         if (interaction.customId === 'merge_players') {
             const modal = await playerTracker.generateMergeModal();
             await interaction.showModal(modal);
-            return;
-        }
-
-        if (customId === 'check_duplicates') {
-            // Récupérer l'embed et les boutons des doublons
-            const { embed, components } = await playerTracker.generateDuplicatesEmbed(interaction.guildId);
-            
-            // Répondre avec l'embed et les boutons
-            await interaction.update({
-                embeds: [embed],
-                components
-            });
             return;
         }
         
