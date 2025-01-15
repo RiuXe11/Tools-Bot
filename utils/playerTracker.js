@@ -423,6 +423,162 @@ class PlayerTracker {
             )
             .setTimestamp();
     }
+
+    async findDuplicates(guildId) {
+        const allData = await this.loadData();
+        const guildData = allData[guildId] || {};
+        
+        // Regrouper par nom normalisé
+        const nameGroups = {};
+        Object.entries(guildData).forEach(([id, data]) => {
+            const normalizedName = data.name.trim().toLowerCase();
+            if (!nameGroups[normalizedName]) {
+                nameGroups[normalizedName] = [];
+            }
+            nameGroups[normalizedName].push({ id, data });
+        });
+    
+        // Filtrer pour ne garder que les groupes avec des doublons
+        const duplicates = Object.entries(nameGroups)
+            .filter(([_, group]) => group.length > 1)
+            .map(([name, group]) => ({
+                name: group[0].data.name,
+                entries: group.map(entry => ({
+                    id: entry.id,
+                    totalTime: entry.data.totalTime,
+                    sessions: entry.data.sessions.length
+                }))
+            }));
+    
+        return duplicates;
+    }
+
+    async generateDuplicatesEmbed(guildId) {
+        const duplicates = await this.findDuplicates(guildId);
+        
+        const embed = new EmbedBuilder()
+            .setColor('#ff9900')
+            .setTitle('Doublons Détectés')
+            .setTimestamp();
+    
+        if (duplicates.length === 0) {
+            embed.setDescription('✅ Aucun doublon trouvé.');
+            return embed;
+        }
+    
+        const description = duplicates.map(dup => {
+            const entriesText = dup.entries.map(entry => 
+                `└─ ID: \`${entry.id}\` - \`${Math.round(entry.totalTime / 3600000)}h\` (${entry.sessions} sessions)`
+            ).join('\n');
+            return `**${dup.name}**\n${entriesText}`;
+        }).join('\n\n');
+    
+        embed.setDescription(description + "\n\nUtilisez le bouton 'Fusionner' pour combiner des doublons ou 'Nettoyer' pour fusionner automatiquement tous les doublons.");
+        
+        const duplicateManagementButtons = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId('merge_players')
+                    .setLabel('Fusionner')
+                    .setStyle(ButtonStyle.Primary)
+                    .setEmoji('🔄'),
+                new ButtonBuilder()
+                    .setCustomId('cleanup_duplicates')
+                    .setLabel('Nettoyer')
+                    .setStyle(ButtonStyle.Danger)
+                    .setEmoji('🧹'),
+                new ButtonBuilder()
+                    .setCustomId('players_stats')
+                    .setLabel('Retour')
+                    .setStyle(ButtonStyle.Secondary)
+                    .setEmoji('↩️')
+            );
+
+        const confirmCleanupButtons = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId('confirm_cleanup')
+                    .setLabel('Confirmer')
+                    .setStyle(ButtonStyle.Danger)
+                    .setEmoji('✅'),
+                new ButtonBuilder()
+                    .setCustomId('cancel_cleanup')
+                    .setLabel('Annuler')
+                    .setStyle(ButtonStyle.Secondary)
+                    .setEmoji('❌')
+            );
+
+        return { 
+            embed,
+            components: [duplicateManagementButtons]
+            // Note: confirmCleanupButtons sera utilisé séparément lors de la confirmation
+        };
+    }
+    
+    async mergePlayers(guildId, sourceId, targetId) {
+        const allData = await this.loadData();
+        const guildData = allData[guildId] || {};
+    
+        if (!guildData[sourceId] || !guildData[targetId]) {
+            throw new Error("Un ou plusieurs IDs invalides");
+        }
+    
+        // Fusionner les sessions
+        guildData[targetId].sessions.push(...guildData[sourceId].sessions);
+        // Trier les sessions par date
+        guildData[targetId].sessions.sort((a, b) => a.start - b.start);
+        // Mettre à jour le temps total
+        guildData[targetId].totalTime += guildData[sourceId].totalTime;
+    
+        // Supprimer le joueur source
+        delete guildData[sourceId];
+    
+        await this.saveData(allData);
+        return guildData[targetId];
+    }
+    
+    async cleanupDuplicates(guildId) {
+        const duplicates = await this.findDuplicates(guildId);
+        const allData = await this.loadData();
+        const guildData = allData[guildId] || {};
+    
+        for (const dup of duplicates) {
+            // Trouver l'entrée avec le plus de temps de jeu
+            const sortedEntries = [...dup.entries].sort((a, b) => b.totalTime - a.totalTime);
+            const targetId = sortedEntries[0].id;
+    
+            // Fusionner tous les autres avec celle-ci
+            for (let i = 1; i < sortedEntries.length; i++) {
+                await this.mergePlayers(guildId, sortedEntries[i].id, targetId);
+            }
+        }
+    
+        return duplicates.length;
+    }
+    
+    async generateMergeModal(playerId1, playerId2) {
+        return new ModalBuilder()
+            .setCustomId('merge_players_modal')
+            .setTitle('Fusionner des joueurs')
+            .addComponents(
+                new ActionRowBuilder().addComponents(
+                    new TextInputBuilder()
+                        .setCustomId('source_id')
+                        .setLabel('ID source (à fusionner)')
+                        .setStyle(TextInputStyle.Short)
+                        .setPlaceholder('ID du joueur à fusionner')
+                        .setRequired(true)
+                ),
+                new ActionRowBuilder().addComponents(
+                    new TextInputBuilder()
+                        .setCustomId('target_id')
+                        .setLabel('ID cible (conservation)')
+                        .setStyle(TextInputStyle.Short)
+                        .setPlaceholder('ID du joueur à conserver')
+                        .setRequired(true)
+                )
+            );
+    }
 }
 
 module.exports = new PlayerTracker();

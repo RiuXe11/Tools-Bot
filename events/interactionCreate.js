@@ -171,6 +171,57 @@ class InteractionHandler {
             await interaction.update({ embeds: [embed], components });
             return;
         }
+
+        if (interaction.customId === 'show_duplicates') {
+            const duplicatesEmbed = await playerTracker.generateDuplicatesEmbed(interaction.guildId);
+            return interaction.update({ 
+                embeds: [duplicatesEmbed], 
+                components: [playerTracker.duplicateManagementButtons] 
+            });
+        }
+        
+        if (interaction.customId === 'merge_players') {
+            const modal = await playerTracker.generateMergeModal();
+            await interaction.showModal(modal);
+            return;
+        }
+        
+        if (interaction.customId === 'cleanup_duplicates') {
+            if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+                return interaction.reply({ 
+                    content: '❌ Seuls les administrateurs peuvent utiliser cette fonction.',
+                    ephemeral: true 
+                });
+            }
+        
+            const confirmEmbed = new EmbedBuilder()
+                .setColor('#ff0000')
+                .setTitle('⚠️ Confirmation de nettoyage')
+                .setDescription('Êtes-vous sûr de vouloir nettoyer tous les doublons ? Cette action est irréversible.\n\nLes comptes seront fusionnés automatiquement en gardant celui avec le plus de temps de jeu.')
+                .setTimestamp();
+        
+            return interaction.update({ 
+                embeds: [confirmEmbed], 
+                components: [playerTracker.confirmCleanupButtons] 
+            });
+        }
+        
+        if (interaction.customId === 'confirm_cleanup') {
+            if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+                return interaction.reply({ 
+                    content: '❌ Seuls les administrateurs peuvent utiliser cette fonction.',
+                    ephemeral: true 
+                });
+            }
+        
+            await playerTracker.cleanupDuplicates(interaction.guildId);
+            const updatedEmbed = await playerTracker.generateDuplicatesEmbed(interaction.guildId);
+            return interaction.update({ 
+                embeds: [updatedEmbed], 
+                components: [playerTracker.duplicateManagementButtons] 
+            });
+        }
+        
     }
 
     static async handleSelectMenu(interaction) {
@@ -280,6 +331,25 @@ class InteractionHandler {
                 components: [viewButtons]
             });
             return;
+        }
+
+        if (interaction.customId === 'merge_players_modal') {
+            const sourceId = interaction.fields.getTextInputValue('source_id');
+            const targetId = interaction.fields.getTextInputValue('target_id');
+        
+            try {
+                await playerTracker.mergePlayers(interaction.guildId, sourceId, targetId);
+                const updatedEmbed = await playerTracker.generateDuplicatesEmbed(interaction.guildId);
+                await interaction.update({ 
+                    embeds: [updatedEmbed], 
+                    components: [playerTracker.duplicateManagementButtons] 
+                });
+            } catch (error) {
+                await interaction.reply({ 
+                    content: `❌ Erreur lors de la fusion : ${error.message}`, 
+                    ephemeral: true 
+                });
+            }
         }
     }
 
