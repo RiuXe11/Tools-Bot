@@ -185,6 +185,18 @@ class InteractionHandler {
             await interaction.showModal(modal);
             return;
         }
+
+        if (customId === 'check_duplicates') {
+            // Récupérer l'embed et les boutons des doublons
+            const { embed, components } = await playerTracker.generateDuplicatesEmbed(interaction.guildId);
+            
+            // Répondre avec l'embed et les boutons
+            await interaction.update({
+                embeds: [embed],
+                components
+            });
+            return;
+        }
         
         if (interaction.customId === 'cleanup_duplicates') {
             if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {

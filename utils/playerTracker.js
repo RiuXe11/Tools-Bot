@@ -96,7 +96,7 @@ class PlayerTracker {
                 ? `🔍 Résultats pour "${searchTerm}":\n\n${playerList}`
                 : `Liste des joueurs:\n\n${playerList}`;
     
-        embed.setDescription(description + "\n\nPour voir les statistiques d'un joueur, utilisez son ID avec le bouton ci-dessous.\n⚠️ - **L'ENREGISTREMENT A COMMENCÉ LE 13/01/2025 AU ENVIRON DE 22h !**");
+            embed.setDescription(description + "\n\nPour voir les statistiques d'un joueur, utilisez son ID avec le bouton ci-dessous.\n⚠️ - **L'ENREGISTREMENT A COMMENCÉ LE 13/01/2025 AU ENVIRON DE 22h !**");
         }
     
         // Boutons d'action
@@ -109,7 +109,12 @@ class PlayerTracker {
                 new ButtonBuilder()
                     .setCustomId('select_player_id')
                     .setLabel('Voir les statistiques')
-                    .setStyle(ButtonStyle.Primary)
+                    .setStyle(ButtonStyle.Primary),
+                new ButtonBuilder()
+                    .setCustomId('check_duplicates')
+                    .setLabel('Doublons')
+                    .setStyle(ButtonStyle.Secondary)
+                    .setEmoji('👥')
             );
     
         // Boutons de tri - Mettre en surbrillance le tri actif
@@ -474,7 +479,7 @@ class PlayerTracker {
         }).join('\n\n');
     
         embed.setDescription(description + "\n\nUtilisez le bouton 'Fusionner' pour combiner des doublons ou 'Nettoyer' pour fusionner automatiquement tous les doublons.");
-        
+
         const duplicateManagementButtons = new ActionRowBuilder()
             .addComponents(
                 new ButtonBuilder()
