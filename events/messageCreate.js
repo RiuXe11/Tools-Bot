@@ -2,6 +2,7 @@ const { PermissionFlagsBits } = require('discord.js');
 const slowmode = require('../utils/slowmode');
 const { handleMessage } = require('../utils/anonymeManager');
 const { loadKeywords, applySanction, checkKeyword } = require('../commands/moderation/keyword'); // Ajout de checkKeyword
+const ServiceManager = require('../utils/serviceManager');
 
 module.exports = {
     name: 'messageCreate',
@@ -10,6 +11,7 @@ module.exports = {
         
         // Gestion des messages anonymes (doit être avant le check du préfixe)
         await handleMessage(message);
+        await ServiceManager.handleMessage(message);
         
         // Vérification des mots-clés avant le check du préfixe
         try {

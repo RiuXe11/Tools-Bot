@@ -11,6 +11,7 @@ const {
 } = require('discord.js');
 const { getFivemServerInfo, getServerAddress, setServerAddress, validateAndFormatAddress } = require('../utils/fivem');
 const statusVariables = require('../utils/statusVariables');
+const ServiceManager = require('../utils/serviceManager');
 const { 
     generateFivemStatsEmbed, 
     fivemTimeButtons,
@@ -32,6 +33,24 @@ class InteractionHandler {
                 content: '❌ Vous devez être administrateur pour utiliser ces boutons.',
                 ephemeral: true 
             });
+        }
+
+        if (interaction.customId?.startsWith('set_') || 
+            interaction.customId === 'toggle_system' || 
+            interaction.customId === 'customize_buttons' ||
+            interaction.customId === 'save_service' || 
+            interaction.customId === 'configure_roles' ||
+            interaction.customId === 'view_stats' || 
+            interaction.customId === 'pds_button' ||
+            interaction.customId === 'fds_button') {
+            if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+                return interaction.reply({ 
+                    content: '❌ Vous devez être administrateur pour utiliser ces boutons.',
+                    ephemeral: true 
+                });
+            }
+            await ServiceManager.handleInteraction(interaction);
+            return;
         }
 
         switch(interaction.customId) {
@@ -760,7 +779,20 @@ module.exports = {
     name: 'interactionCreate',
     async execute(interaction) {
         try {
-            // Ajouter cette section pour gérer les interactions liées aux mots-clés
+            // Ajouter la gestion des interactions du système de service
+            if (interaction.customId?.startsWith('set_') || 
+                interaction.customId === 'toggle_system' || 
+                interaction.customId === 'customize_buttons' ||
+                interaction.customId === 'save_service' || 
+                interaction.customId === 'configure_roles' ||
+                interaction.customId === 'view_stats' || 
+                interaction.customId === 'pds_button' ||
+                interaction.customId === 'fds_button') {
+                await ServiceManager.handleInteraction(interaction);
+                return;
+            }
+
+            // Gestion des interactions liées aux mots-clés
             if (interaction.customId?.startsWith('keyword-') || 
                 interaction.customId === 'sanction-type-select' || 
                 (interaction.isStringSelectMenu() && interaction.customId === 'keyword-select')) {
