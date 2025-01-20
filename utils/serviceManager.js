@@ -9,6 +9,20 @@ const {
 const fs = require('fs');
 const path = require('path');
 
+const getTimeString = () => new Date().toLocaleTimeString('fr-FR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    timeZone: 'Europe/Paris'
+});
+
+const getDateString = () => new Date().toLocaleDateString('fr-FR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    timeZone: 'Europe/Paris'
+});
+
 class ServiceManager {
     static configPath = path.join(__dirname, '../data/serviceConfig.json');
     static settingChannels = new Collection();
@@ -122,7 +136,7 @@ class ServiceManager {
                 }
             )
             .setTimestamp()
-            .setFooter({ text: 'serv codage bot • ' + new Date().toLocaleTimeString() });
+            .setFooter({ text: 'Service • ' + getTimeString() });
 
         return { 
             embeds: [configEmbed], 
@@ -171,7 +185,7 @@ class ServiceManager {
             .setDescription('Utilisez les boutons ci-dessous pour gérer votre service.')
             .setColor('#2F3136')
             .setTimestamp()
-            .setFooter({ text: 'serv codage bot • ' + new Date().toLocaleTimeString() });
+            .setFooter({ text: 'Service • ' + getTimeString() });
 
         const row = new ActionRowBuilder()
             .addComponents(
@@ -219,7 +233,7 @@ class ServiceManager {
             .setDescription('Utilisez les boutons ci-dessous pour gérer votre service.')
             .setColor('#2F3136')
             .setTimestamp()
-            .setFooter({ text: 'Service • ' + new Date().toLocaleTimeString() });
+            .setFooter({ text: 'Service • ' + getTimeString() });
     
         // Créer les boutons PDS/FDS
         const row = new ActionRowBuilder()
@@ -314,7 +328,7 @@ class ServiceManager {
                 }
             )
             .setTimestamp()
-            .setFooter({ text: 'serv codage bot • ' + new Date().toLocaleTimeString() });
+            .setFooter({ text: 'Service • ' + getTimeString() });
     
         await interaction.reply({
             embeds: [statsEmbed],
@@ -354,11 +368,11 @@ class ServiceManager {
             .setDescription(`${interaction.user} a pris son service`)
             .setColor('#00FF00')
             .addFields(
-                { name: 'Début du service', value: new Date().toLocaleTimeString(), inline: true },
-                { name: 'Date', value: new Date().toLocaleDateString(), inline: true }
+                { name: 'Début du service', value: getTimeString(), inline: true },
+                { name: 'Date', value: getDateString(), inline: true }
             )
             .setTimestamp()
-            .setFooter({ text: 'serv codage bot • ' + new Date().toLocaleTimeString() });
+            .setFooter({ text: 'Service • ' + getTimeString() });
     
         if (config.logsChannel) {
             const logsChannel = interaction.guild.channels.cache.get(config.logsChannel);
@@ -404,11 +418,11 @@ class ServiceManager {
             .setDescription(`${interaction.user} a terminé son service`)
             .setColor('#FF0000')
             .addFields(
-                { name: 'Fin du service', value: new Date().toLocaleTimeString(), inline: true },
-                { name: 'Date', value: new Date().toLocaleDateString(), inline: true }
+                { name: 'Fin du service', value: getTimeString(), inline: true },
+                { name: 'Date', value: getDateString(), inline: true }
             )
             .setTimestamp()
-            .setFooter({ text: 'serv codage bot • ' + new Date().toLocaleTimeString() });
+            .setFooter({ text: 'Service • ' + getTimeString() });
 
         // Envoyer dans le salon des logs si configuré
         if (config.logsChannel) {
