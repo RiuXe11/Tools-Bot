@@ -219,7 +219,7 @@ class ServiceManager {
             .setDescription('Utilisez les boutons ci-dessous pour gérer votre service.')
             .setColor('#2F3136')
             .setTimestamp()
-            .setFooter({ text: 'serv codage bot • ' + new Date().toLocaleTimeString() });
+            .setFooter({ text: 'Service • ' + new Date().toLocaleTimeString() });
     
         // Créer les boutons PDS/FDS
         const row = new ActionRowBuilder()
