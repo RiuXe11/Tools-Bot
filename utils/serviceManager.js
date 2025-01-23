@@ -56,17 +56,17 @@ class ServiceManager {
         const row1 = new ActionRowBuilder()
             .addComponents(
                 new ButtonBuilder()
-                    .setCustomId('set_logs_channel')
+                    .setCustomId('service_set_logs_channel')
                     .setLabel('Salon Logs')
                     .setStyle(ButtonStyle.Primary)
                     .setEmoji('📝'),
                 new ButtonBuilder()
-                    .setCustomId('set_service_channel')
+                    .setCustomId('service_set_service_channel')
                     .setLabel('Salon Service')
                     .setStyle(ButtonStyle.Primary)
                     .setEmoji('📊'),
                 new ButtonBuilder()
-                    .setCustomId('toggle_system')
+                    .setCustomId('service_toggle_system')
                     .setLabel('Activer/Désactiver')
                     .setStyle(ButtonStyle.Secondary)
                     .setEmoji('🔄')
@@ -75,7 +75,7 @@ class ServiceManager {
         const row2 = new ActionRowBuilder()
             .addComponents(                  
                 new ButtonBuilder()
-                    .setCustomId('configure_roles')
+                    .setCustomId('service_configure_roles')
                     .setLabel('Configurer Rôles')
                     .setStyle(ButtonStyle.Success)
                     .setEmoji('👥'),
@@ -89,7 +89,7 @@ class ServiceManager {
         const row3 = new ActionRowBuilder()
             .addComponents(
                 new ButtonBuilder()
-                    .setCustomId('save_service')
+                    .setCustomId('service_save_service')
                     .setLabel('Sauvegarder')
                     .setStyle(ButtonStyle.Success)
                     .setEmoji('💾')  
@@ -147,31 +147,31 @@ class ServiceManager {
     // Gestion des interactions
     static async handleInteraction(interaction) {
         switch(interaction.customId) {
-            case 'set_logs_channel':
+            case 'service_set_logs_channel':
                 await this.handleSetLogsChannel(interaction);
                 break;
-            case 'set_service_channel':
+            case 'service_set_service_channel':
                 await this.handleSetServiceChannel(interaction);
                 break;
-            case 'customize_buttons':
+            case 'service_customize_buttons':
                 await this.handleCustomizeButtons(interaction);
                 break;
-            case 'toggle_system':
+            case 'service_toggle_system':
                 await this.handleToggleSystem(interaction);
                 break;
-            case 'configure_roles':
+            case 'service_configure_roles':
                 await this.handleConfigureRoles(interaction);
                 break;
-            case 'view_stats':
+            case 'service_view_stats':
                 await this.handleViewStats(interaction);
                 break;
-            case 'save_service':
+            case 'service_save_service':
                 await this.handleSaveService(interaction);
                 break;
-            case 'pds_button':
+            case 'service_pds_button':
                 await this.handlePDS(interaction);
                 break;
-            case 'fds_button':
+            case 'service_fds_button':
                 await this.handleFDS(interaction);
                 break;
         }
@@ -190,12 +190,12 @@ class ServiceManager {
         const row = new ActionRowBuilder()
             .addComponents(
                 new ButtonBuilder()
-                    .setCustomId('pds_button')
+                    .setCustomId('service_pds_button')
                     .setLabel(config.buttons.pds.label)
                     .setStyle(config.buttons.pds.style)
                     .setEmoji(config.buttons.pds.emoji),
                 new ButtonBuilder()
-                    .setCustomId('fds_button')
+                    .setCustomId('service_fds_button')
                     .setLabel(config.buttons.fds.label)
                     .setStyle(config.buttons.fds.style)
                     .setEmoji(config.buttons.fds.emoji)
@@ -239,12 +239,12 @@ class ServiceManager {
         const row = new ActionRowBuilder()
             .addComponents(
                 new ButtonBuilder()
-                    .setCustomId('pds_button')
+                    .setCustomId('service_pds_button')
                     .setLabel('PDS')
                     .setStyle(ButtonStyle.Success)
                     .setEmoji('🟢'),
                 new ButtonBuilder()
-                    .setCustomId('fds_button')
+                    .setCustomId('service_fds_button')
                     .setLabel('FDS')
                     .setStyle(ButtonStyle.Danger)
                     .setEmoji('🔴')

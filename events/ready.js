@@ -4,11 +4,9 @@ const os = require('os');
 const path = require('path');
 const fs = require('fs').promises;
 const statusVariables = require('../utils/statusVariables');
-const { getServerAddress } = require('../utils/fivem');
+const { getServerAddress } = require('../commands/fivem/fivem');
 const slowmode = require('../utils/slowmode');
 const statusManager = require('../utils/statusManager');
-const hourlyRecorder = require('../utils/hourlyRecorder');
-const serverMonitor = require('../utils/serverMonitor');
 
 // Codes de couleur ANSI étendus
 const colors = {
@@ -80,16 +78,6 @@ class BotInitializer {
         return false;
     }
 
-    async initServerMonitor() {
-        try {
-            serverMonitor.start(this.client);
-            return true;
-        } catch (error) {
-            console.error('Erreur lors de l\'initialisation du moniteur de serveur:', error);
-            return false;
-        }
-    }
-
     async setupStatus() {
         try {
             // Charger et appliquer le statut personnalisé
@@ -113,8 +101,6 @@ class BotInitializer {
             console.log(`\n${colors.bright.red}🛑 Signal ${signal} reçu. Arrêt en cours...${colors.reset}`);
             try {
                 await slowmode.saveAllData();
-                await hourlyRecorder.stop();
-                serverMonitor.stop(); // Ajout de l'arrêt du moniteur
                 console.log(colors.bright.green + '✅ Données sauvegardées avec succès' + colors.reset);
             } catch (error) {
                 console.error(colors.red + '❌ Erreur lors de la sauvegarde:' + colors.reset, error);
@@ -146,8 +132,7 @@ class BotInitializer {
                 // Initialisation des systèmes
                 console.log(colors.bold + colors.bright.magenta + '⚙️  INITIALISATION DES SYSTÈMES' + colors.reset);
                 console.log(colors.bright.green + '┌─ Slowmode: ' + colors.white + (await this.initSlowmode() ? '✅' : '❌'));
-                console.log(colors.bright.green + '├─ FiveM: ' + colors.white + (await this.initFiveM() ? '✅' : '❌'));
-                console.log(colors.bright.green + '└─ Server Monitor: ' + colors.white + (await this.initServerMonitor() ? '✅' : '❌'));
+                console.log(colors.bright.green + '└─ FiveM: ' + colors.white + (await this.initFiveM() ? '✅' : '❌'));
 
                 // Informations du bot
                 console.log(colors.bold + colors.bright.magenta + '⭐ INFORMATIONS DU BOT' + colors.reset);
@@ -176,7 +161,6 @@ class BotInitializer {
                 // Configuration des gestionnaires
                 await this.setupShutdownHandlers();
                 await this.setupStatus();
-                await hourlyRecorder.start();
 
                 resolve();
             });

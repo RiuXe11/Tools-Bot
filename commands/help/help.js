@@ -23,7 +23,6 @@ function getCommandsByCategory(prefix) {
     return {
         "🌍 FiveM": [
             { name: `${prefix}fivem`, description: 'Permet de gérer le status FiveM.' },
-            { name: `${prefix}stats`, description: 'Permet de voir les statistiques du nombre de joueur.' },
             { name: `${prefix}anonyme`, description: 'Permet de paramétrer le système d\'anonymat ' }
         ],
         "⚙️ Moderation": [

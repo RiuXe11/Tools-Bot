@@ -28,7 +28,17 @@ const client = new Client({
     }
 });
 
+// Collections
 client.commands = new Collection();
+
+// Gestionnaire d'erreurs global
+process.on('unhandledRejection', error => {
+    console.error('Unhandled promise rejection:', error);
+});
+
+client.on('error', error => {
+    console.error('Discord client error:', error);
+});
 
 // Chargement des événements
 const eventsPath = path.join(__dirname, 'events');
@@ -57,4 +67,21 @@ for (const folder of commandFolders) {
     }
 }
 
-client.login(process.env.DISCORD_TOKEN);
+// Gestion propre de la fermeture
+process.on('SIGINT', () => {
+    console.log('Bot is shutting down...');
+    client.destroy();
+    process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+    console.log('Bot is shutting down...');
+    client.destroy();
+    process.exit(0);
+});
+
+client.login(process.env.DISCORD_TOKEN)
+    .catch(error => {
+        console.error('Error during login:', error);
+        process.exit(1);
+    });

@@ -26,17 +26,17 @@ module.exports = {
         const row1 = new ActionRowBuilder()
             .addComponents(
                 new ButtonBuilder()
-                    .setCustomId('set_logs_channel')
+                    .setCustomId('service_set_logs_channel')
                     .setLabel('Salon Logs')
                     .setStyle(ButtonStyle.Primary)
                     .setEmoji('📝'),
                 new ButtonBuilder()
-                    .setCustomId('set_service_channel')
+                    .setCustomId('service_set_service_channel')
                     .setLabel('Salon Service')
                     .setStyle(ButtonStyle.Primary)
                     .setEmoji('📊'),
                 new ButtonBuilder()
-                    .setCustomId('toggle_system')
+                    .setCustomId('service_toggle_system')
                     .setLabel('Activer/Désactiver')
                     .setStyle(ButtonStyle.Secondary)
                     .setEmoji('🔄')
@@ -45,12 +45,12 @@ module.exports = {
         const row2 = new ActionRowBuilder()
             .addComponents(
                 new ButtonBuilder()
-                    .setCustomId('configure_roles')
+                    .setCustomId('service_configure_roles')
                     .setLabel('Configurer Rôles')
                     .setStyle(ButtonStyle.Success)
                     .setEmoji('👥'),
                 new ButtonBuilder()
-                    .setCustomId('view_stats')
+                    .setCustomId('service_view_stats')
                     .setLabel('Statistiques')
                     .setStyle(ButtonStyle.Secondary)
                     .setEmoji('📈')
@@ -59,7 +59,7 @@ module.exports = {
         const row3 = new ActionRowBuilder()
             .addComponents(
                 new ButtonBuilder()
-                    .setCustomId('save_service')
+                    .setCustomId('service_save_service')
                     .setLabel('Sauvegarder')
                     .setStyle(ButtonStyle.Success)
                     .setEmoji('💾')  

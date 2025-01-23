@@ -1,4 +1,4 @@
-const fivem = require('./fivem');
+const fivem = require('../commands/fivem/fivem');
 
 class StatusVariables {
     constructor() {
