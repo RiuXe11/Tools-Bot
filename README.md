@@ -6,7 +6,6 @@
   <br>
 </h1>
 
----
 # 🎮 Bot Discord - Présentation des Commandes
 
 Bienvenue dans le dépôt GitHub de **Tools - Bot**, un bot Discord entièrement personnalisable avec une variété de fonctionnalités, incluant des jeux, la gestion de modération et des services utiles.
