@@ -14,27 +14,15 @@ module.exports = {
                 
                 // Mapper les préfixes aux chemins des fichiers
                 const commandPaths = {
-                    // /commands/anonyme
-                    'anonyme': '../commands/anonyme/anonyme.js',
-
-                    // /commands/service.js
-                    'service': '../commands/service/service.js',
-
-                    // /commands/games
                     'connect4': '../commands/games/connect4.js',
                     'tictactoe': '../commands/games/tictactoe.js',
                     'battleship': '../commands/games/battleship.js',
-                    'hangman': '../commands/games/hangman.js',
-
-                    // /commands/fivem
+                    'yams': '../commands/games/yams.js',
                     'fivem': '../commands/fivem/fivem.js',
-
-                    // /commands/moderation
                     'keyword': '../commands/moderation/keyword.js',
-
-                    // /utils
                     'service': '../utils/serviceManager.js',
-                    'anonyme': '../utils/anonymeManager.js',
+                    'stats': '../commands/fivem/stats.js',
+                    'PlayerTracker': '../utils/playerTracker.js',
                 };
                 
                 commandPath = commandPaths[prefix];
@@ -55,6 +43,7 @@ module.exports = {
                     'connect4': '../commands/games/connect4.js',
                     'fivem': '../commands/fivem/fivem.js',
                     'battleship': '../commands/games/battleship.js',
+                    'PlayerTracker': '../utils/playerTracker.js',
                 };
 
                 if (modalPaths[modalPrefix]) {

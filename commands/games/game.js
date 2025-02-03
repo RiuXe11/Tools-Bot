@@ -9,11 +9,13 @@ module.exports = {
             .setTitle('🎮 Liste des jeux disponibles')
             .setDescription('Choisissez un jeu pour commencer à jouer!')
             .addFields(
-                { name: 'Puissance 4', value: 'Un jeu de stratégie classique où il faut aligner 4 jetons.' },
-                { name: 'Morpion', value: 'Le célèbre jeu où il faut aligner 3 symboles.' },
-                { name: 'Bataille Navale', value: 'Le jeu classique de guerre navale où il faut couler les bateaux adverses.' },
-                { name: 'Pendu', value: 'Jeu où tu dois donner des lettres et deviner le mot caché !' }
-            );
+                { name: '🕹️ Puissance 4', value: '> Un jeu de stratégie classique où il faut aligner 4 jetons.' },
+                { name: '❌ Morpion', value: '> Le célèbre jeu où il faut aligner 3 symboles.' },
+                { name: '🚢 Bataille Navale', value: '> Le jeu classique de guerre navale où il faut couler les bateaux adverses.' },
+                { name: '💀 Pendu', value: '> Jeu où tu dois donner des lettres et deviner le mot caché !' },
+                { name: '🎲 Yams', value: '> Le YAMS est un jeu de dés basé sur des combinaisons pour marquer des points.' },
+            )
+            .setFooter({ text: "Game Launcher v0.4" });
 
         const row = new ActionRowBuilder()
             .addComponents(
@@ -32,7 +34,11 @@ module.exports = {
                 new ButtonBuilder()
                     .setCustomId('hangman')
                     .setLabel('Pendu')
-                    .setStyle(ButtonStyle.Primary)
+                    .setStyle(ButtonStyle.Primary),
+                new ButtonBuilder()
+                    .setCustomId('yams')
+                    .setLabel('Yam\'s')
+                    .setStyle(ButtonStyle.Primary),
             );
 
         return message.reply({
